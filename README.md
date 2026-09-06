@@ -45,6 +45,9 @@ ricer install https://github.com/username/dotfiles --dry-run
 
 # Restore your previous configs
 ricer restore
+
+# Check and update Rice Farmer to the latest version
+ricer update
 ```
 
 ### Flags

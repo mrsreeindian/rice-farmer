@@ -45,6 +45,7 @@ ${BOLD}USAGE${RESET}
   ricer detect                  Show detected system info
   ricer install <github-url>    Install a rice/dotfile repo
   ricer restore                 Restore the latest config backup
+  ricer update                  Check for updates and pull the latest version
 
 ${BOLD}FLAGS${RESET}
   --dry-run      Show the install plan without executing
@@ -58,6 +59,7 @@ ${BOLD}EXAMPLES${RESET}
   ricer install https://github.com/username/dotfiles
   ricer install https://github.com/user/hyprland-dots --dry-run
   ricer restore
+  ricer update
 
 HELP
 }
@@ -67,7 +69,7 @@ SUBCOMMAND=""
 GITHUB_URL=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    detect|install|restore) SUBCOMMAND="$1"; shift ;;
+    detect|install|restore|update) SUBCOMMAND="$1"; shift ;;
     --dry-run)    RICER_DRY_RUN=true; shift ;;
     --no-backup)  RICER_NO_BACKUP=true; shift ;;
     --offline)    RICER_OFFLINE=true; shift ;;
@@ -178,6 +180,78 @@ cmd_restore() {
   restore_latest_backup
 }
 
+# ── Subcommand: update ────────────────────────────────────────────────────────
+cmd_update() {
+  local repo_raw="https://raw.githubusercontent.com/mrsreeindian/rice-farmer/main"
+  local bin_dir="${HOME}/.local/bin"
+  local lib_dir="${HOME}/.local/lib/ricer"
+  local share_dir="${HOME}/.local/share/ricer"
+
+  log_info "Checking for updates from GitHub..."
+
+  # If running inside a git clone repository (developer mode)
+  if [ -d "${RICER_SELF}/.git" ]; then
+    log_info "Git repository detected at ${RICER_SELF}."
+    (
+      cd "${RICER_SELF}"
+      git fetch origin main --quiet 2>/dev/null || git fetch origin --quiet
+      local local_hash remote_hash
+      local_hash=$(git rev-parse HEAD 2>/dev/null || echo "local")
+      remote_hash=$(git rev-parse origin/main 2>/dev/null || echo "remote")
+
+      if [ "$local_hash" = "$remote_hash" ]; then
+        log_ok "Already on the latest version (${VERSION})."
+        exit 0
+      fi
+
+      log_info "Pulling latest changes from git..."
+      if git pull --ff-only origin main; then
+        local new_ver
+        new_ver=$(cat "${RICER_SELF}/.version" 2>/dev/null || echo "$VERSION")
+        log_ok "Updated successfully to v${new_ver}!"
+      else
+        die "Failed to pull updates automatically via git."
+      fi
+    )
+    return 0
+  fi
+
+  # Installed mode (via curl installer)
+  local remote_version
+  remote_version=$(curl -fsSL --max-time 10 "${repo_raw}/.version" 2>/dev/null || echo "")
+
+  if [ -z "$remote_version" ]; then
+    die "Could not check remote version from GitHub. Check your internet connection."
+  fi
+
+  if [ "$VERSION" != "dev" ] && [ "$VERSION" = "$remote_version" ]; then
+    log_ok "Already on the latest version (v${VERSION})."
+    return 0
+  fi
+
+  log_info "New version available: v${remote_version} (current: v${VERSION})"
+  confirm "Update now?" "y" || { log_info "Update cancelled."; return 0; }
+
+  log_info "Downloading latest version..."
+  mkdir -p "$bin_dir" "$lib_dir" "$share_dir"
+
+  # Download main script
+  if ! curl -fsSL --max-time 30 "${repo_raw}/ricer" -o "${bin_dir}/ricer"; then
+    die "Failed to download ricer script."
+  fi
+  chmod +x "${bin_dir}/ricer"
+
+  # Download libraries
+  for lib in utils detect ai rules install; do
+    if ! curl -fsSL --max-time 30 "${repo_raw}/lib/${lib}.sh" -o "${lib_dir}/${lib}.sh"; then
+      die "Failed to download lib/${lib}.sh."
+    fi
+  done
+
+  echo "$remote_version" > "${share_dir}/.version"
+  log_ok "Updated successfully to Rice Farmer v${remote_version}!"
+}
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 check_deps
 
@@ -185,6 +259,7 @@ case "$SUBCOMMAND" in
   detect)  cmd_detect ;;
   install) cmd_install ;;
   restore) cmd_restore ;;
+  update)  cmd_update ;;
   "")      usage; exit 0 ;;
   *)       log_error "Unknown subcommand: $SUBCOMMAND"; usage; exit 1 ;;
 esac
