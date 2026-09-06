@@ -112,12 +112,13 @@ _do_stow() {
 _backup_copy() {
   local repo_dir="$1" src="$2" dst="$3"
   dst="${dst/\~/$HOME}"
+  dst="${dst/#\~/$HOME}"
   src_full="${repo_dir}/${src}"
 
   if [ -e "$dst" ] && [ "${RICER_NO_BACKUP:-false}" = "false" ]; then
     mkdir -p "$RICER_BACKUP_DIR"
     cp -r "$dst" "$RICER_BACKUP_DIR/" 2>/dev/null || true
-    log_dim "Backed up: $dst → $RICER_BACKUP_DIR"
+    log_dim "Backed up: $dst -> $RICER_BACKUP_DIR"
   fi
 
   # If src is "." copy all top-level dotfiles to home
@@ -129,7 +130,13 @@ _backup_copy() {
       done
   else
     mkdir -p "$(dirname "$dst")"
-    cp -r "$src_full" "$dst"
+    if [ -d "$src_full" ]; then
+      # If target directory already exists, ensure clean update
+      rm -rf "$dst" 2>/dev/null || true
+      cp -r "$src_full" "$dst"
+    else
+      cp -r "$src_full" "$dst"
+    fi
   fi
 }
 
@@ -137,20 +144,21 @@ _backup_copy() {
 _backup_link() {
   local repo_dir="$1" src="$2" dst="$3"
   dst="${dst/\~/$HOME}"
+  dst="${dst/#\~/$HOME}"
   src_full="${repo_dir}/${src}"
   [ ! -e "$src_full" ] && src_full="$src"   # allow absolute src
 
   if [ -e "$dst" ] && [ ! -L "$dst" ] && [ "${RICER_NO_BACKUP:-false}" = "false" ]; then
     mkdir -p "$RICER_BACKUP_DIR"
     mv "$dst" "$RICER_BACKUP_DIR/"
-    log_dim "Backed up: $dst → $RICER_BACKUP_DIR"
-  elif [ -L "$dst" ]; then
-    rm "$dst"   # remove existing symlink
+    log_dim "Backed up: $dst -> $RICER_BACKUP_DIR"
+  elif [ -L "$dst" ] || [ -e "$dst" ]; then
+    rm -rf "$dst"   # remove existing link or file/directory
   fi
 
   mkdir -p "$(dirname "$dst")"
   ln -sf "$src_full" "$dst"
-  log_dim "Symlinked: $src_full → $dst"
+  log_dim "Symlinked: $src_full -> $dst"
 }
 
 # ── Run command inside repo dir ───────────────────────────────────────────────

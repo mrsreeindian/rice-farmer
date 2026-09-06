@@ -67,12 +67,24 @@ rules_detect_plan() {
   fi
 
   # ── Pattern 5: plain .config directory ───────────────────────────────────────
+  # ── Pattern 5: .config directory present ─────────────────────────────────────
   if [ -d "$repo_dir/.config" ]; then
-    log_dim "Rule: plain .config directory"
-    plan=$(jq -cn '[
-      {"type":"symlink","args":[".config","~/.config"],"description":"Symlink .config into home"}
-    ]')
-    echo "$plan"; return 0
+    log_dim "Rule: .config directory detected"
+    local config_steps=()
+    while IFS= read -r -d '' cdir; do
+      local bname
+      bname=$(basename "$cdir")
+      config_steps+=("{\"type\":\"copy\",\"args\":[\".config/$bname\",\"~/.config/$bname\"],\"description\":\"Install $bname config\"}")
+    done < <(find "$repo_dir/.config" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
+
+    if [ ${#config_steps[@]} -gt 0 ]; then
+      local json_steps
+      json_steps=$(IFS=,; echo "[${config_steps[*]}]")
+      echo "$json_steps"; return 0
+    else
+      plan=$(jq -cn '[{"type":"copy","args":[".config","~/.config"],"description":"Copy .config into home"}]')
+      echo "$plan"; return 0
+    fi
   fi
 
   # ── Pattern 6: dotfiles at repo root (files starting with .) ─────────────────
@@ -89,8 +101,44 @@ rules_detect_plan() {
     echo "$plan"; return 0
   fi
 
+  # ── Pattern 7: app config folders at repo root (e.g. hypr, nvim, waybar, kitty) ───
+  local common_apps=(hypr hyprland sway i3 waybar rofi wofi kitty alacritty foot wezterm \
+                     nvim neovim fish zsh tmux dunst mako polybar fastfetch btop cava)
+  local found_app_steps=()
+  for app in "${common_apps[@]}"; do
+    if [ -d "$repo_dir/$app" ]; then
+      found_app_steps+=("{\"type\":\"copy\",\"args\":[\"$app\",\"~/.config/$app\"],\"description\":\"Install $app config to ~/.config/$app\"}")
+    fi
+  done
+  if [ ${#found_app_steps[@]} -gt 0 ]; then
+    log_dim "Rule: recognized app config directories at root"
+    local json_app_steps
+    json_app_steps=$(IFS=,; echo "[${found_app_steps[*]}]")
+    echo "$json_app_steps"; return 0
+  fi
+
+  # ── Pattern 8: any subdirectories (generic config copy) ──────────────────────
+  local generic_steps=()
+  while IFS= read -r -d '' gdir; do
+    local gname
+    gname=$(basename "$gdir")
+    case "$gname" in
+      .git|.github|tests|docs|pictures|wallpapers|assets) ;;
+      *)
+        generic_steps+=("{\"type\":\"copy\",\"args\":[\"$gname\",\"~/.config/$gname\"],\"description\":\"Install $gname to ~/.config/$gname\"}")
+        ;;
+    esac
+  done < <(find "$repo_dir" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
+
+  if [ ${#generic_steps[@]} -gt 0 ]; then
+    log_dim "Rule: installing root config folders to ~/.config"
+    local json_generic_steps
+    json_generic_steps=$(IFS=,; echo "[${generic_steps[*]}]")
+    echo "$json_generic_steps"; return 0
+  fi
+
   # ── Unknown pattern ───────────────────────────────────────────────────────────
-  log_warn "No known repo pattern detected."
+  log_warn "No config files or recognized structures found in repository."
   echo "[]"
   return 1
 }

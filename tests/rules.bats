@@ -31,12 +31,12 @@ _tmpdir() { mktemp -d; }
   echo "$result" | jq -e 'map(select(.type=="stow")) | length > 0'
 }
 
-@test "Pattern 5: detects plain .config directory" {
+@test "Pattern 5: detects .config directory and creates copy steps" {
   d=$(_tmpdir)
   mkdir -p "$d/.config/alacritty"
   result=$(rules_detect_plan "$d")
   rm -rf "$d"
-  echo "$result" | jq -e '.[0].type == "symlink"'
+  echo "$result" | jq -e '.[0].type == "copy" and (.[0].args[1] | test("~/.config/alacritty"))'
 }
 
 @test "Pattern 6: detects root dotfiles" {
@@ -47,7 +47,15 @@ _tmpdir() { mktemp -d; }
   echo "$result" | jq -e '.[0].type == "copy"'
 }
 
-@test "Unknown repo returns empty array" {
+@test "Pattern 7: detects app config directories without install script" {
+  d=$(_tmpdir)
+  mkdir -p "$d/hypr" "$d/waybar"
+  result=$(rules_detect_plan "$d")
+  rm -rf "$d"
+  echo "$result" | jq -e 'length == 2 and .[0].type == "copy"'
+}
+
+@test "Empty directory returns empty array" {
   d=$(_tmpdir)
   result=$(rules_detect_plan "$d" 2>/dev/null || echo "[]")
   rm -rf "$d"
