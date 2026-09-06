@@ -16,7 +16,7 @@ print_plan() {
   n=$(echo "$steps_json" | jq 'length')
   echo ""
   echo -e "${BOLD}Install plan (${n} step(s)):${RESET}"
-  echo "─────────────────────────────────────────"
+  echo "-----------------------------------------"
   for i in $(seq 0 $((n-1))); do
     local type desc args_str
     type=$(echo "$steps_json" | jq -r ".[$i].type")
@@ -25,7 +25,7 @@ print_plan() {
     printf "  %2d. ${CYAN}[%s]${RESET} %s\n" "$((i+1))" "$type" "$desc"
     log_dim "args: $args_str"
   done
-  echo "─────────────────────────────────────────"
+  echo "-----------------------------------------"
   echo ""
 }
 

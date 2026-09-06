@@ -1,4 +1,4 @@
-# Rice Farmer 🌾
+# Rice Farmer
 
 > Install any Linux rice/dotfiles from a GitHub URL — in one command.
 
@@ -7,10 +7,11 @@
 [![shell](https://img.shields.io/badge/shell-bash-orange)](#)
 
 **Rice Farmer** is a lightweight (~30 KB), pure-Bash tool that:
-- 🔍 Auto-detects your distro, WM, package managers, and hardware
-- 🛡️ Backs up your existing configs before touching anything
-- ♻️ Works fully offline using a built-in rule engine
-- 📦 Installs itself via a single `curl` command
+- Auto-detects your distro, WM, package managers, and hardware
+- Uses [Pollinations.ai](https://pollinations.ai) (free, no API key) to generate an intelligent install plan from any dotfiles repo
+- Backs up your existing configs before touching anything
+- Works fully offline using a built-in rule engine
+- Installs itself via a single `curl` command
 
 ---
 

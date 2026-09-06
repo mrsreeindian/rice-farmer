@@ -9,10 +9,10 @@ LIB_DIR="${HOME}/.local/lib/ricer"
 
 # ── Colours (minimal, no sourcing) ───────────────────────────────────────────
 G='\033[0;32m'; C='\033[0;36m'; Y='\033[0;33m'; R='\033[0;31m'; N='\033[0m'
-info()  { echo -e "${C}[•]${N} $*"; }
-ok()    { echo -e "${G}[✓]${N} $*"; }
+info()  { echo -e "${C}[*]${N} $*"; }
+ok()    { echo -e "${G}[+]${N} $*"; }
 warn()  { echo -e "${Y}[!]${N} $*"; }
-die()   { echo -e "${R}[✗]${N} $*" >&2; exit 1; }
+die()   { echo -e "${R}[x]${N} $*" >&2; exit 1; }
 
 # ── Dependency check ──────────────────────────────────────────────────────────
 for dep in curl git jq bash; do

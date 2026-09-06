@@ -12,11 +12,11 @@ else
 fi
 
 # ── Logging — all write to stderr to keep stdout clean for JSON captures ───────
-log_info()  { echo -e "${CYAN}[•]${RESET} $*" >&2; }
-log_ok()    { echo -e "${GREEN}[✓]${RESET} $*" >&2; }
+log_info()  { echo -e "${CYAN}[*]${RESET} $*" >&2; }
+log_ok()    { echo -e "${GREEN}[+]${RESET} $*" >&2; }
 log_warn()  { echo -e "${YELLOW}[!]${RESET} $*" >&2; }
-log_error() { echo -e "${RED}[✗]${RESET} $*" >&2; }
-log_step()  { echo -e "${BOLD}${BLUE}[→]${RESET} $*" >&2; }
+log_error() { echo -e "${RED}[x]${RESET} $*" >&2; }
+log_step()  { echo -e "${BOLD}${BLUE}[>]${RESET} $*" >&2; }
 log_dim()   { echo -e "${DIM}    $*${RESET}" >&2; }
 
 die() { log_error "$*"; exit 1; }
@@ -25,7 +25,7 @@ die() { log_error "$*"; exit 1; }
 _SPINNER_PID=""
 spinner_start() {
   local msg="${1:-Working...}"
-  local frames=('⠋' '⠙' '⠸' '⠴' '⠦' '⠇')
+  local frames=('-' '\' '|' '/')
   (
     i=0
     while true; do
@@ -50,11 +50,11 @@ spinner_stop() {
 # ── System info table ──────────────────────────────────────────────────────────
 print_system_table() {
   local w=44
-  local line; line=$(printf '═%.0s' $(seq 1 $w))
-  echo -e "${CYAN}╔${line}╗${RESET}"
-  printf "${CYAN}║${RESET}  ${BOLD}${MAGENTA}Rice Farmer — System Detection${RESET}%*s${CYAN}║${RESET}\n" $((w-32)) ""
-  echo -e "${CYAN}╠${line}╣${RESET}"
-  _row() { printf "${CYAN}║${RESET}  ${BOLD}%-10s${RESET} : %-$((w-15))s${CYAN}║${RESET}\n" "$1" "${2:0:$((w-15))}"; }
+  local line; line=$(printf '=%.0s' $(seq 1 $w))
+  echo -e "${CYAN}+${line}+${RESET}"
+  printf "${CYAN}|${RESET}  ${BOLD}${MAGENTA}Rice Farmer — System Detection${RESET}%*s${CYAN}|${RESET}\n" $((w-32)) ""
+  echo -e "${CYAN}+${line}+${RESET}"
+  _row() { printf "${CYAN}|${RESET}  ${BOLD}%-10s${RESET} : %-$((w-15))s${CYAN}|${RESET}\n" "$1" "${2:0:$((w-15))}"; }
   _row "Distro"  "${RICER_DISTRO_PRETTY}"
   _row "WM"      "${RICER_WM}"
   _row "Pkgs"    "${RICER_PKG_MANAGERS}"
@@ -62,7 +62,7 @@ print_system_table() {
   _row "RAM"     "${RICER_RAM}"
   _row "GPU"     "${RICER_GPU}"
   _row "Arch"    "${RICER_ARCH}"
-  echo -e "${CYAN}╚${line}╝${RESET}"
+  echo -e "${CYAN}+${line}+${RESET}"
 }
 
 # ── Prompt helpers ─────────────────────────────────────────────────────────────
