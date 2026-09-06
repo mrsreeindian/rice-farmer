@@ -48,6 +48,9 @@ ricer restore
 
 # Check and update Rice Farmer to the latest version
 ricer update
+
+# Uninstall Rice Farmer
+ricer uninstall
 ```
 
 ### Flags

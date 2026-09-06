@@ -46,6 +46,7 @@ ${BOLD}USAGE${RESET}
   ricer install <github-url>    Install a rice/dotfile repo
   ricer restore                 Restore the latest config backup
   ricer update                  Check for updates and pull the latest version
+  ricer uninstall               Remove Rice Farmer from the system
 
 ${BOLD}FLAGS${RESET}
   --dry-run      Show the install plan without executing
@@ -60,6 +61,7 @@ ${BOLD}EXAMPLES${RESET}
   ricer install https://github.com/user/hyprland-dots --dry-run
   ricer restore
   ricer update
+  ricer uninstall
 
 HELP
 }
@@ -69,7 +71,7 @@ SUBCOMMAND=""
 GITHUB_URL=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    detect|install|restore|update) SUBCOMMAND="$1"; shift ;;
+    detect|install|restore|update|uninstall) SUBCOMMAND="$1"; shift ;;
     --dry-run)    RICER_DRY_RUN=true; shift ;;
     --no-backup)  RICER_NO_BACKUP=true; shift ;;
     --offline)    RICER_OFFLINE=true; shift ;;
@@ -252,14 +254,51 @@ cmd_update() {
   log_ok "Updated successfully to Rice Farmer v${remote_version}!"
 }
 
+# ── Subcommand: uninstall ─────────────────────────────────────────────────────
+cmd_uninstall() {
+  local bin_file="${HOME}/.local/bin/ricer"
+  local lib_dir="${HOME}/.local/lib/ricer"
+  local share_dir="${HOME}/.local/share/ricer"
+
+  echo ""
+  log_warn "This will uninstall Rice Farmer from your system."
+  confirm "Are you sure you want to uninstall?" "n" || { log_info "Uninstall aborted."; return 0; }
+
+  local removed=0
+  if [ -f "$bin_file" ]; then
+    rm -f "$bin_file" && log_ok "Removed binary: $bin_file"
+    ((removed++))
+  fi
+
+  if [ -d "$lib_dir" ]; then
+    rm -rf "$lib_dir" && log_ok "Removed libraries: $lib_dir"
+    ((removed++))
+  fi
+
+  if [ -d "$share_dir" ]; then
+    rm -rf "$share_dir" && log_ok "Removed share directory: $share_dir"
+    ((removed++))
+  fi
+
+  if [ "$removed" -eq 0 ]; then
+    log_info "No installed files found under ~/.local (you may be running from a dev repository)."
+  else
+    echo ""
+    log_ok "Rice Farmer has been uninstalled."
+    log_dim "Note: Config backups in ~/.config-backup-* were preserved."
+    log_dim "If you want to remove PATH exports, check ~/.bashrc, ~/.zshrc, or ~/.profile."
+  fi
+}
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 check_deps
 
 case "$SUBCOMMAND" in
-  detect)  cmd_detect ;;
-  install) cmd_install ;;
-  restore) cmd_restore ;;
-  update)  cmd_update ;;
-  "")      usage; exit 0 ;;
-  *)       log_error "Unknown subcommand: $SUBCOMMAND"; usage; exit 1 ;;
+  detect)    cmd_detect ;;
+  install)   cmd_install ;;
+  restore)   cmd_restore ;;
+  update)    cmd_update ;;
+  uninstall) cmd_uninstall ;;
+  "")        usage; exit 0 ;;
+  *)         log_error "Unknown subcommand: $SUBCOMMAND"; usage; exit 1 ;;
 esac
