@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # installer/install.sh — cURL bootstrap for Rice Farmer
-# Usage: curl -fsSL https://raw.githubusercontent.com/mrsreeindian/linux-ricer/main/installer/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/mrsreeindian/rice-farmer/main/installer/install.sh | bash
 set -euo pipefail
 
-REPO_RAW="https://raw.githubusercontent.com/mrsreeindian/linux-ricer/main"
+REPO_RAW="https://raw.githubusercontent.com/mrsreeindian/rice-farmer/main"
 BIN_DIR="${HOME}/.local/bin"
 LIB_DIR="${HOME}/.local/lib/ricer"
 
