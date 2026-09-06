@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ricer — Rice Farmer powered by Pollinations.ai
-# https://github.com/mrsreeindian/linux-ricer
+# https://github.com/mrsreeindian/rice-farmer
 set -euo pipefail
 
 # ── Locate lib directory ──────────────────────────────────────────────────────
