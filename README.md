@@ -18,7 +18,7 @@
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/linux-ricer/main/installer/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/mrsreeindian/linux-ricer/main/installer/install.sh | bash
 ```
 
 Restart your shell, then:

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # installer/install.sh — cURL bootstrap for linux-ricer
-# Usage: curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/linux-ricer/main/installer/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/mrsreeindian/linux-ricer/main/installer/install.sh | bash
 set -euo pipefail
 
-REPO_RAW="https://raw.githubusercontent.com/YOUR_USERNAME/linux-ricer/main"
+REPO_RAW="https://raw.githubusercontent.com/mrsreeindian/linux-ricer/main"
 BIN_DIR="${HOME}/.local/bin"
 LIB_DIR="${HOME}/.local/lib/ricer"
 
