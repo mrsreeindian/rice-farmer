@@ -8,6 +8,7 @@
 
 **Rice Farmer** is a lightweight (~30 KB), pure-Bash tool that:
 - Auto-detects your distro, WM, package managers, and hardware
+- Uses a free cloud AI model (no API key required) to intelligently install any rice or dotfiles
 - Backs up your existing configs before touching anything
 - Works fully offline using a built-in rule engine
 - Installs itself via a single `curl` command
@@ -59,22 +60,22 @@ ricer uninstall
 | `--dry-run` | Show the plan, don't execute |
 | `--no-backup` | Skip config backup (use with care) |
 | `--offline` | Force rule engine, skip AI call |
-| `--model <name>` | Override Pollinations model (default: `openai`) |
+| `--model <name>` | Override AI model name (default: `openai`) |
 
 ---
 
 ## How It Works
 
 ```
-1. detect    → reads /proc, /etc/os-release, $XDG_CURRENT_DESKTOP
-2. clone     → git clone --depth=1 <url> /tmp/ricer-XXXX/
-3. AI plan   → Pollinations.ai reads the repo tree + README, returns JSON steps
-4. confirm   → shows you the plan, asks for approval
-5. execute   → backup → install deps → stow / copy / symlink configs
-6. cleanup   → rm -rf /tmp/ricer-XXXX/
+1. detect    -> reads /proc, /etc/os-release, $XDG_CURRENT_DESKTOP
+2. clone     -> git clone --depth=1 <url> /tmp/ricer-XXXX/
+3. AI plan   -> AI analyzes repo tree + configs, returns JSON steps
+4. confirm   -> shows you the plan, asks for approval
+5. execute   -> backup -> install deps -> stow / copy / symlink configs
+6. cleanup   -> rm -rf /tmp/ricer-XXXX/
 ```
 
-The AI step calls `https://text.pollinations.ai` — no account, no API key, no local model. If the AI call fails or you're offline, a built-in rule engine handles the 6 most common repo patterns (stow, chezmoi, install.sh, bare-git, `.config/` dir, root dotfiles).
+The AI step uses a lightweight cloud AI endpoint — no account, no API key, and no heavy local model required. If the AI call fails or you are running offline, the built-in rule engine takes over automatically to handle common dotfile structures and scriptless repositories.
 
 ---
 

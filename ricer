@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ricer — Rice Farmer powered by Pollinations.ai
+# ricer — AI-powered Linux rice and dotfile installer
 # https://github.com/mrsreeindian/rice-farmer
 set -euo pipefail
 
@@ -52,7 +52,7 @@ ${BOLD}FLAGS${RESET}
   --dry-run      Show the install plan without executing
   --no-backup    Skip config backup (dangerous!)
   --offline      Skip AI call, use built-in rule engine only
-  --model <name> Pollinations model (default: openai)
+  --model <name> AI model to use (default: openai)
   --version      Print version and exit
   --help         Show this help
 
