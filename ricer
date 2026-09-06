@@ -237,11 +237,15 @@ cmd_update() {
   log_info "Downloading latest version..."
   mkdir -p "$bin_dir" "$lib_dir" "$share_dir"
 
-  # Download main script
-  if ! curl -fsSL --max-time 30 "${repo_raw}/ricer" -o "${bin_dir}/ricer"; then
+  # Download main script atomically so bash file-offset is not disturbed while running
+  local tmp_bin
+  tmp_bin=$(mktemp "${bin_dir}/ricer.tmp.XXXXXX")
+  if ! curl -fsSL --max-time 30 "${repo_raw}/ricer" -o "$tmp_bin"; then
+    rm -f "$tmp_bin"
     die "Failed to download ricer script."
   fi
-  chmod +x "${bin_dir}/ricer"
+  chmod +x "$tmp_bin"
+  mv -f "$tmp_bin" "${bin_dir}/ricer"
 
   # Download libraries
   for lib in utils detect ai rules install; do
@@ -252,6 +256,7 @@ cmd_update() {
 
   echo "$remote_version" > "${share_dir}/.version"
   log_ok "Updated successfully to Rice Farmer v${remote_version}!"
+  exit 0
 }
 
 # ── Subcommand: uninstall ─────────────────────────────────────────────────────
