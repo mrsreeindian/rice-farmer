@@ -2,7 +2,6 @@
 # lib/ai.sh — AI backend: Pollinations.ai (primary) + Ollama (if already running)
 
 POLLINATIONS_TEXT="https://text.pollinations.ai"
-POLLINATIONS_OPENAI="https://text.pollinations.ai/openai"
 AI_TIMEOUT=40   # seconds before falling back to rule engine
 RICER_AI_BACKEND=""
 
@@ -93,24 +92,28 @@ For paths, use ~ for home directory. Be concise. Output raw JSON only.
 PROMPT
 }
 
-# ── Ask Pollinations.ai ────────────────────────────────────────────────────────
+# ── Ask Pollinations.ai (anonymous GET — free, no key) ────────────────────────
 _ask_pollinations() {
   local prompt="$1"
   local encoded
   encoded=$(_urlencode "$prompt")
 
-  # POST to the OpenAI-compatible endpoint for better JSON reliability
-  curl -fsSL --max-time "$AI_TIMEOUT" \
-    -X POST "$POLLINATIONS_OPENAI" \
-    -H 'Content-Type: application/json' \
-    -d "$(jq -n \
-      --arg model "openai" \
-      --arg content "$prompt" \
-      '{model: $model, messages: [{role:"system", content:"You are a Linux rice installer. Output only raw JSON arrays."},{role:"user",content:$content}], response_format:{type:"json_object"}}'
-    )" 2>/dev/null \
-  | jq -r '.choices[0].message.content // empty' 2>/dev/null \
-  || curl -fsSL --max-time "$AI_TIMEOUT" \
-       "${POLLINATIONS_TEXT}/${encoded}?model=openai&json=true" 2>/dev/null
+  # --no-netrc: guarantees anonymous request (no injected auth credentials)
+  # -f: fail silently on 4xx/5xx (returns non-zero exit code)
+  local response http_code
+  http_code=$(curl -o /tmp/ricer_ai_resp.tmp -s -w "%{http_code}" \
+    --max-time "$AI_TIMEOUT" \
+    --no-netrc \
+    --no-keepalive \
+    "${POLLINATIONS_TEXT}/${encoded}" 2>/dev/null || echo "000")
+
+  case "$http_code" in
+    200) cat /tmp/ricer_ai_resp.tmp ;;
+    402) log_warn "Pollinations.ai: rate limit hit — falling back to rule engine." ;;
+    000) log_warn "Pollinations.ai: request timed out (${AI_TIMEOUT}s) — falling back." ;;
+    *)   log_warn "Pollinations.ai: HTTP ${http_code} — falling back to rule engine." ;;
+  esac
+  rm -f /tmp/ricer_ai_resp.tmp
 }
 
 # ── Ask Ollama ─────────────────────────────────────────────────────────────────
