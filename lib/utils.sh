@@ -52,7 +52,7 @@ print_system_table() {
   local w=44
   local line; line=$(printf '═%.0s' $(seq 1 $w))
   echo -e "${CYAN}╔${line}╗${RESET}"
-  printf "${CYAN}║${RESET}  ${BOLD}${MAGENTA}linux-ricer — System Detection${RESET}%*s${CYAN}║${RESET}\n" $((w-32)) ""
+  printf "${CYAN}║${RESET}  ${BOLD}${MAGENTA}Rice Farmer — System Detection${RESET}%*s${CYAN}║${RESET}\n" $((w-32)) ""
   echo -e "${CYAN}╠${line}╣${RESET}"
   _row() { printf "${CYAN}║${RESET}  ${BOLD}%-10s${RESET} : %-$((w-15))s${CYAN}║${RESET}\n" "$1" "${2:0:$((w-15))}"; }
   _row "Distro"  "${RICER_DISTRO_PRETTY}"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# ricer — Linux rice installer powered by Pollinations.ai
-# https://github.com/YOUR_USERNAME/linux-ricer
+# ricer — Rice Farmer powered by Pollinations.ai
+# https://github.com/mrsreeindian/linux-ricer
 set -euo pipefail
 
 # ── Locate lib directory ──────────────────────────────────────────────────────
@@ -39,7 +39,7 @@ RICER_POLLIN_MODEL="openai"
 usage() {
   cat <<HELP
 
-${BOLD}linux-ricer${RESET} v${VERSION} — Install any Linux rice from a GitHub URL
+${BOLD}Rice Farmer${RESET} v${VERSION} — Install any Linux rice from a GitHub URL
 
 ${BOLD}USAGE${RESET}
   ricer detect                  Show detected system info
@@ -72,7 +72,7 @@ while [[ $# -gt 0 ]]; do
     --no-backup)  RICER_NO_BACKUP=true; shift ;;
     --offline)    RICER_OFFLINE=true; shift ;;
     --model)      RICER_POLLIN_MODEL="$2"; shift 2 ;;
-    --version|-v) echo "linux-ricer v${VERSION}"; exit 0 ;;
+    --version|-v) echo "Rice Farmer v${VERSION}"; exit 0 ;;
     --help|-h)    usage; exit 0 ;;
     http*|git*)
       GITHUB_URL="$1"; shift

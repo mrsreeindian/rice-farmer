@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# installer/install.sh — cURL bootstrap for linux-ricer
+# installer/install.sh — cURL bootstrap for Rice Farmer
 # Usage: curl -fsSL https://raw.githubusercontent.com/mrsreeindian/linux-ricer/main/installer/install.sh | bash
 set -euo pipefail
 
@@ -22,7 +22,7 @@ done
 # ── Fetch version ─────────────────────────────────────────────────────────────
 VERSION=$(curl -fsSL --max-time 10 "${REPO_RAW}/.version" 2>/dev/null || echo "?")
 echo ""
-echo -e "  ${C}linux-ricer${N} installer — version ${VERSION}"
+echo -e "  ${C}Rice Farmer${N} installer — version ${VERSION}"
 echo ""
 
 # ── Create dirs ───────────────────────────────────────────────────────────────
@@ -51,7 +51,7 @@ for rc in "${HOME}/.bashrc" "${HOME}/.zshrc" "${HOME}/.profile"; do
   if [ -f "$rc" ]; then
     if ! grep -q "$BIN_DIR" "$rc" 2>/dev/null; then
       echo "" >> "$rc"
-      echo "# linux-ricer" >> "$rc"
+      echo "# Rice Farmer" >> "$rc"
       echo "export PATH=\"${BIN_DIR}:\$PATH\"" >> "$rc"
       added_path=true
     fi
@@ -60,7 +60,7 @@ done
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo ""
-ok "linux-ricer v${VERSION} installed to ${BIN_DIR}/ricer"
+ok "Rice Farmer v${VERSION} installed to ${BIN_DIR}/ricer"
 if [ "$added_path" = "true" ]; then
   warn "Restart your shell or run:  export PATH=\"${BIN_DIR}:\$PATH\""
 fi
