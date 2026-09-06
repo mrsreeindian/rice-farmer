@@ -1,0 +1,190 @@
+#!/usr/bin/env bash
+# ricer — Linux rice installer powered by Pollinations.ai
+# https://github.com/YOUR_USERNAME/linux-ricer
+set -euo pipefail
+
+# ── Locate lib directory ──────────────────────────────────────────────────────
+RICER_SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Installed path: ~/.local/lib/ricer; dev path: ./lib
+if [ -d "${RICER_SELF}/../lib/ricer" ]; then
+  LIB="${RICER_SELF}/../lib/ricer"
+elif [ -d "${RICER_SELF}/lib" ]; then
+  LIB="${RICER_SELF}/lib"
+else
+  echo "ERROR: Cannot find lib directory." >&2; exit 1
+fi
+
+# shellcheck source=lib/utils.sh
+source "${LIB}/utils.sh"
+# shellcheck source=lib/detect.sh
+source "${LIB}/detect.sh"
+# shellcheck source=lib/ai.sh
+source "${LIB}/ai.sh"
+# shellcheck source=lib/rules.sh
+source "${LIB}/rules.sh"
+# shellcheck source=lib/install.sh
+source "${LIB}/install.sh"
+
+VERSION="$(cat "${RICER_SELF}/.version" 2>/dev/null \
+           || cat "${RICER_SELF}/../share/ricer/.version" 2>/dev/null \
+           || echo "dev")"
+
+# ── Flags / defaults ──────────────────────────────────────────────────────────
+RICER_DRY_RUN=false
+RICER_NO_BACKUP=false
+RICER_OFFLINE=false
+RICER_POLLIN_MODEL="openai"
+
+# ── Usage ─────────────────────────────────────────────────────────────────────
+usage() {
+  cat <<HELP
+
+${BOLD}linux-ricer${RESET} v${VERSION} — Install any Linux rice from a GitHub URL
+
+${BOLD}USAGE${RESET}
+  ricer detect                  Show detected system info
+  ricer install <github-url>    Install a rice/dotfile repo
+  ricer restore                 Restore the latest config backup
+
+${BOLD}FLAGS${RESET}
+  --dry-run      Show the install plan without executing
+  --no-backup    Skip config backup (dangerous!)
+  --offline      Skip AI call, use built-in rule engine only
+  --model <name> Pollinations model (default: openai)
+  --version      Print version and exit
+  --help         Show this help
+
+${BOLD}EXAMPLES${RESET}
+  ricer install https://github.com/username/dotfiles
+  ricer install https://github.com/user/hyprland-dots --dry-run
+  ricer restore
+
+HELP
+}
+
+# ── Parse arguments ───────────────────────────────────────────────────────────
+SUBCOMMAND=""
+GITHUB_URL=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    detect|install|restore) SUBCOMMAND="$1"; shift ;;
+    --dry-run)    RICER_DRY_RUN=true; shift ;;
+    --no-backup)  RICER_NO_BACKUP=true; shift ;;
+    --offline)    RICER_OFFLINE=true; shift ;;
+    --model)      RICER_POLLIN_MODEL="$2"; shift 2 ;;
+    --version|-v) echo "linux-ricer v${VERSION}"; exit 0 ;;
+    --help|-h)    usage; exit 0 ;;
+    http*|git*)
+      GITHUB_URL="$1"; shift
+      [ -z "$SUBCOMMAND" ] && SUBCOMMAND="install"
+      ;;
+    *)
+      log_error "Unknown argument: $1"
+      usage; exit 1
+      ;;
+  esac
+done
+
+export RICER_NO_BACKUP RICER_OFFLINE RICER_POLLIN_MODEL
+
+# ── Dependency check ──────────────────────────────────────────────────────────
+check_deps() {
+  local missing=()
+  for dep in curl git jq bash; do
+    command -v "$dep" &>/dev/null || missing+=("$dep")
+  done
+  if [ ${#missing[@]} -gt 0 ]; then
+    log_error "Missing required tools: ${missing[*]}"
+    log_info  "Install them with your package manager, then re-run ricer."
+    exit 1
+  fi
+}
+
+# ── Subcommand: detect ────────────────────────────────────────────────────────
+cmd_detect() {
+  detect_system
+  print_system_table
+}
+
+# ── Subcommand: install ───────────────────────────────────────────────────────
+cmd_install() {
+  [ -z "$GITHUB_URL" ] && { log_error "Please provide a GitHub URL."; usage; exit 1; }
+
+  detect_system
+  print_system_table
+
+  # Validate URL looks like a GitHub repo
+  if [[ ! "$GITHUB_URL" =~ ^https?://github\.com/[^/]+/[^/]+ ]]; then
+    log_warn "URL doesn't look like a GitHub repo. Proceeding anyway..."
+  fi
+
+  # ── Clone repo ────────────────────────────────────────────────────────────
+  local tmp_dir
+  tmp_dir=$(mktemp -d /tmp/ricer-XXXXXXXXXX)
+  # Always clean up temp dir on exit
+  trap 'spinner_stop; rm -rf "$tmp_dir"; log_dim "Cleaned up $tmp_dir"' EXIT
+
+  log_info "Cloning ${GITHUB_URL}..."
+  if ! GIT_TERMINAL_PROMPT=0 \
+       git clone --depth=1 --quiet "$GITHUB_URL" "$tmp_dir" 2>&1; then
+    die "Failed to clone repository. Ensure the URL is correct and the repo is public."
+  fi
+  log_ok "Cloned to ${tmp_dir}"
+
+  # ── Get install plan ──────────────────────────────────────────────────────
+  local plan=""
+  if [ "$RICER_OFFLINE" = "false" ]; then
+    plan=$(get_ai_plan "$tmp_dir" "$GITHUB_URL") || true
+  fi
+  if [ -z "$plan" ] || [ "$plan" = "null" ] || [ "$plan" = "[]" ]; then
+    log_info "Using built-in rule engine..."
+    plan=$(rules_detect_plan "$tmp_dir") || plan="[]"
+  fi
+
+  # ── Show plan + confirm ───────────────────────────────────────────────────
+  local n
+  n=$(echo "$plan" | jq 'length' 2>/dev/null || echo 0)
+  if [ "$n" -eq 0 ]; then
+    log_warn "Could not determine install steps for this repo."
+    log_info "You may need to install it manually. Check the repo README."
+    exit 1
+  fi
+
+  print_plan "$plan"
+
+  if [ "$RICER_DRY_RUN" = "true" ]; then
+    log_info "Dry-run mode — no changes made."
+    trap - EXIT   # disable cleanup trap (keep tmp for inspection)
+    log_dim "Temp dir: $tmp_dir"
+    exit 0
+  fi
+
+  [ "$RICER_NO_BACKUP" = "true" ] && log_warn "Backup disabled (--no-backup)."
+
+  confirm "Apply this rice?" "n" || { log_info "Aborted."; exit 0; }
+
+  # ── Execute ───────────────────────────────────────────────────────────────
+  echo ""
+  execute_steps "$plan" "$tmp_dir" "false"
+  echo ""
+  log_ok "${BOLD}Rice applied successfully!${RESET}"
+  [ "${RICER_NO_BACKUP}" = "false" ] && [ -d "${RICER_BACKUP_DIR:-}" ] \
+    && log_info "Backup: ${RICER_BACKUP_DIR}"
+  log_info "You may need to restart your WM or log out for changes to take effect."
+}
+
+# ── Subcommand: restore ───────────────────────────────────────────────────────
+cmd_restore() {
+  restore_latest_backup
+}
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+check_deps
+
+case "$SUBCOMMAND" in
+  detect)  cmd_detect ;;
+  install) cmd_install ;;
+  restore) cmd_restore ;;
+  "")      usage; exit 0 ;;
+  *)       log_error "Unknown subcommand: $SUBCOMMAND"; usage; exit 1 ;;
+esac
