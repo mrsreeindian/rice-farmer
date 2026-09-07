@@ -82,12 +82,13 @@ _pkg_install() {
   log_dim "Installing packages: $*"
   case "$RICER_PM_CMD" in
     pacman)       sudo pacman -S --noconfirm --needed "$@" ;;
-    apt|apt-get)  sudo apt-get install -y "$@" ;;
-    dnf|yum)      sudo dnf install -y "$@" ;;
-    zypper)       sudo zypper install -y "$@" ;;
+    apt|apt-get)  sudo apt-get update -qq && sudo apt-get install -y "$@" ;;
+    dnf)          sudo dnf install -y "$@" ;;
+    yum)          sudo yum install -y "$@" ;;
+    zypper)       sudo zypper --non-interactive install "$@" ;;
+    emerge)       sudo emerge --ask=n --verbose "$@" ;;
     apk)          sudo apk add "$@" ;;
     xbps-install) sudo xbps-install -y "$@" ;;
-    emerge)       sudo emerge "$@" ;;
     brew)         brew install "$@" ;;
     *)
       log_warn "Unknown package manager '${RICER_PM_CMD}' — skipping package install."

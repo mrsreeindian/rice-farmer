@@ -1,17 +1,14 @@
 # Changelog
 
-## [0.1.2] — 2026-09-06
+## [0.1.0] — 2026-09-07
 ### Added
-- GRUB bootloader customization support: detects GRUB, installs themes to `/boot/grub/themes/`, updates `GRUB_THEME` in `/etc/default/grub`, backs up original config, and regenerates `grub.cfg` via `grub-mkconfig` / `update-grub`
-- Scriptless dotfile repo support: AI model automatically synthesizes install steps by mapping app config folders to `~/.config/` and dotfiles to `$HOME`, even without `install.sh` or setup scripts
-- Enhanced offline rule engine with multi-pattern detection for root-level config directories and software configs
-- Added `ricer update` command to pull latest releases from GitHub
-- Added `ricer uninstall` command for clean removal
-- Pure ASCII output across all terminals
-
-## [0.1.0] — 2026-09-06
-### Added
-- Initial release
+- First official release of Rice Farmer
+- Multi-distro detection & support: **Ubuntu/Debian** (`apt`), **Red Hat/Fedora/CentOS/Rocky** (`dnf`/`yum`), **Arch Linux** (`pacman`), **Gentoo** (`emerge`), and **openSUSE/SUSE** (`zypper`)
+- GRUB bootloader customization: automatic theme installation, `/etc/default/grub` configuration, safe backup & restore, and `grub-mkconfig`/`update-grub` regeneration
+- Scriptless dotfile repo support: intelligent automatic mapping of app configs to `~/.config/` and dotfiles to `$HOME`
+- Cloud AI plan generation (free, no API key required) with automatic fallback to an 8-pattern offline rule engine
+- One-liner cURL installer, atomic self-update (`ricer update`), and clean uninstaller (`ricer uninstall`)
+- Pure ASCII terminal styling and box borders compatible with all terminals and TTYs
 - System detection (distro, WM, package managers, CPU, RAM, GPU)
 - Pollinations.ai cloud AI backend (no API key, no local model)
 - Ollama auto-detect (used if already running locally)

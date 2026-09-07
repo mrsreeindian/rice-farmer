@@ -2,12 +2,12 @@
 
 > Install any Linux rice/dotfiles from a GitHub URL — in one command.
 
-[![version](https://img.shields.io/badge/version-0.1.2-blue)](#)
+[![version](https://img.shields.io/badge/version-0.1.0-blue)](#)
 [![license](https://img.shields.io/badge/license-MIT-green)](#)
 [![shell](https://img.shields.io/badge/shell-bash-orange)](#)
 
 **Rice Farmer** is a lightweight (~30 KB), pure-Bash tool that:
-- Auto-detects your distro, WM, package managers, hardware, and bootloader (GRUB)
+- Auto-detects your distro (Ubuntu/Debian, Red Hat/Fedora/CentOS, Arch, Gentoo, openSUSE), WM, package managers, hardware, and bootloader (GRUB)
 - Uses a free cloud AI model (no API key required) to intelligently install any rice, dotfiles, or GRUB bootloader themes
 - Backs up your existing configs (including `/etc/default/grub`) before touching anything
 - Works fully offline using a built-in rule engine

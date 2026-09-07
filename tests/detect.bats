@@ -47,3 +47,11 @@ setup() {
 @test "RICER_HAS_GRUB is boolean" {
   [[ "$RICER_HAS_GRUB" =~ ^(true|false)$ ]]
 }
+
+@test "RICER_DISTRO_FAMILY is set" {
+  [ -n "$RICER_DISTRO_FAMILY" ]
+}
+
+@test "RICER_PM_CMD matches supported package managers or empty" {
+  [[ "$RICER_PM_CMD" =~ ^(pacman|apt|apt-get|dnf|yum|zypper|emerge|apk|xbps-install|brew|)$ ]]
+}

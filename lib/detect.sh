@@ -7,27 +7,59 @@ detect_system() {
     # shellcheck disable=SC1091
     source /etc/os-release
     RICER_DISTRO="${ID:-unknown}"
+    RICER_DISTRO_LIKE="${ID_LIKE:-}"
     RICER_DISTRO_PRETTY="${PRETTY_NAME:-Linux}"
   else
     RICER_DISTRO="unknown"
+    RICER_DISTRO_LIKE=""
     RICER_DISTRO_PRETTY="Unknown Linux"
   fi
 
+  # Distro family classification
+  RICER_DISTRO_FAMILY="unknown"
+  case "$RICER_DISTRO $RICER_DISTRO_LIKE" in
+    *ubuntu*|*debian*|*pop*|*mint*|*elementary*)
+      RICER_DISTRO_FAMILY="ubuntu/debian" ;;
+    *rhel*|*redhat*|*fedora*|*centos*|*rocky*|*alma*)
+      RICER_DISTRO_FAMILY="redhat" ;;
+    *arch*|*manjaro*|*endeavouros*|*omarchy*|*garuda*|*artix*)
+      RICER_DISTRO_FAMILY="arch" ;;
+    *gentoo*|*funtoo*)
+      RICER_DISTRO_FAMILY="gentoo" ;;
+    *suse*|*opensuse*)
+      RICER_DISTRO_FAMILY="opensuse" ;;
+  esac
+
   # ── Package managers ─────────────────────────────────────────────────────────
   RICER_PKG_MANAGERS=""
-  for pm in pacman apt apt-get dnf yum zypper apk xbps-install emerge nix brew; do
+  for pm in pacman apt apt-get dnf yum zypper emerge apk xbps-install nix brew; do
     command -v "$pm" &>/dev/null && RICER_PKG_MANAGERS+="${pm} "
   done
   RICER_PKG_MANAGERS="${RICER_PKG_MANAGERS% }"
   [ -z "$RICER_PKG_MANAGERS" ] && RICER_PKG_MANAGERS="unknown"
 
-  # Canonical PM (first one found; used for installs)
+  # Canonical PM (prioritized according to distro family)
   RICER_PM_CMD=""
-  for pm in pacman apt dnf zypper apk xbps-install emerge; do
-    if command -v "$pm" &>/dev/null; then
-      RICER_PM_CMD="$pm"; break
-    fi
-  done
+  case "$RICER_DISTRO_FAMILY" in
+    ubuntu/debian)
+      for pm in apt apt-get; do command -v "$pm" &>/dev/null && { RICER_PM_CMD="$pm"; break; }; done ;;
+    redhat)
+      for pm in dnf yum; do command -v "$pm" &>/dev/null && { RICER_PM_CMD="$pm"; break; }; done ;;
+    arch)
+      command -v pacman &>/dev/null && RICER_PM_CMD="pacman" ;;
+    gentoo)
+      command -v emerge &>/dev/null && RICER_PM_CMD="emerge" ;;
+    opensuse)
+      command -v zypper &>/dev/null && RICER_PM_CMD="zypper" ;;
+  esac
+
+  if [ -z "$RICER_PM_CMD" ]; then
+    for pm in pacman apt dnf zypper emerge apk xbps-install yum brew; do
+      if command -v "$pm" &>/dev/null; then
+        RICER_PM_CMD="$pm"; break
+      fi
+    done
+  fi
 
   # ── Window Manager / Desktop Environment ────────────────────────────────────
   RICER_WM="${XDG_CURRENT_DESKTOP:-${DESKTOP_SESSION:-}}"
@@ -76,7 +108,8 @@ detect_system() {
     RICER_BOOTLOADER="systemd-boot"
   fi
 
-  export RICER_DISTRO RICER_DISTRO_PRETTY RICER_PKG_MANAGERS RICER_PM_CMD \
+  export RICER_DISTRO RICER_DISTRO_LIKE RICER_DISTRO_FAMILY RICER_DISTRO_PRETTY \
+         RICER_PKG_MANAGERS RICER_PM_CMD \
          RICER_WM RICER_SESSION RICER_CPU RICER_RAM RICER_GPU RICER_ARCH \
          RICER_BOOTLOADER RICER_HAS_GRUB
 }

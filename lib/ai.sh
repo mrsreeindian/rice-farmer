@@ -77,6 +77,7 @@ CRITICAL INSTRUCTIONS:
 
 System context:
   distro: ${RICER_DISTRO} (${RICER_DISTRO_PRETTY})
+  distro_family: ${RICER_DISTRO_FAMILY} (e.g. ubuntu/debian, redhat, arch, gentoo, opensuse)
   wm: ${RICER_WM}
   session: ${RICER_SESSION}
   bootloader: ${RICER_BOOTLOADER} (grub_available: ${RICER_HAS_GRUB})
