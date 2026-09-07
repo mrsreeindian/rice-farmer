@@ -7,9 +7,9 @@
 [![shell](https://img.shields.io/badge/shell-bash-orange)](#)
 
 **Rice Farmer** is a lightweight (~30 KB), pure-Bash tool that:
-- Auto-detects your distro, WM, package managers, and hardware
-- Uses a free cloud AI model (no API key required) to intelligently install any rice or dotfiles
-- Backs up your existing configs before touching anything
+- Auto-detects your distro, WM, package managers, hardware, and bootloader (GRUB)
+- Uses a free cloud AI model (no API key required) to intelligently install any rice, dotfiles, or GRUB bootloader themes
+- Backs up your existing configs (including `/etc/default/grub`) before touching anything
 - Works fully offline using a built-in rule engine
 - Installs itself via a single `curl` command
 
@@ -84,10 +84,11 @@ The AI step uses a lightweight cloud AI endpoint — no account, no API key, and
 | Pattern | Detection |
 |---|---|
 | `install.sh` / `setup.sh` | Runs the script directly |
+| GRUB Theme | `theme.txt` in root or subdirectory |
 | GNU Stow | `.stow-local-ignore` or multi-package layout |
 | chezmoi | `.chezmoi/` dir or `dot_*` files |
 | Bare git | `bare = true` in `.git/config` |
-| Plain `.config/` | Symlinks into `~/.config` |
+| Plain `.config/` | Installs each subfolder into `~/.config` |
 | Root dotfiles | Copies `.*` files to `$HOME` |
 
 ---

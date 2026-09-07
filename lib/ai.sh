@@ -69,6 +69,7 @@ CRITICAL INSTRUCTIONS:
 1. EVEN IF THERE IS NO INSTALL SCRIPT (no install.sh, setup.sh, Makefile, etc.), YOU MUST STILL INSTALL AND CONFIGURE THE RICE:
    - Identify configuration folders (e.g., nvim, hypr, sway, i3, waybar, rofi, kitty, alacritty, polybar, fastfetch, dunst, fish, zsh, tmux, etc.).
    - If directories belong in ~/.config/, map each folder with "copy": ["<folder>", "~/.config/<folder>"] or "symlink".
+   - If the repository contains a GRUB theme (theme.txt, background images, fonts), use {"type":"grub_theme","args":["<theme_dir_or_.>","<theme_name>"],"description":"Install GRUB bootloader theme"}.
    - If files are dotfiles for the home directory (e.g., .bashrc, .zshrc, .tmux.conf), map them to "~/<file>".
    - If the repository has a GNU Stow structure (packages containing .config or dotfiles), use {"type":"stow","args":["."],"description":"Stow dotfiles"}.
    - Identify any obvious software dependencies from the configs or README (e.g. hyprland, waybar, rofi, kitty, neovim, tmux) and include an "install_pkg" step for package manager (${RICER_PM_CMD:-pacman}).
@@ -78,6 +79,7 @@ System context:
   distro: ${RICER_DISTRO} (${RICER_DISTRO_PRETTY})
   wm: ${RICER_WM}
   session: ${RICER_SESSION}
+  bootloader: ${RICER_BOOTLOADER} (grub_available: ${RICER_HAS_GRUB})
   package_managers: ${RICER_PKG_MANAGERS}
   canonical_pm: ${RICER_PM_CMD}
   arch: ${RICER_ARCH}
@@ -94,12 +96,13 @@ Output format:
 [
   { "type": "install_pkg", "args": ["pkg1", "pkg2"], "description": "Install required packages" },
   { "type": "copy",        "args": ["<src_rel_path>", "~/.config/<app>"], "description": "Install <app> config" },
+  { "type": "grub_theme",  "args": ["<dir_with_theme.txt>", "<theme_name>"], "description": "Install GRUB bootloader theme" },
   { "type": "stow",        "args": ["."],           "description": "Stow all dotfiles" },
   { "type": "symlink",     "args": ["<src>", "<dst>"], "description": "Symlink config" },
   { "type": "run_cmd",     "args": ["<command>"],   "description": "Run command" }
 ]
 
-Valid types: install_pkg, copy, symlink, stow, run_cmd.
+Valid types: install_pkg, copy, symlink, stow, grub_theme, run_cmd.
 Output raw JSON only.
 PROMPT
 }

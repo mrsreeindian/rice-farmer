@@ -2,6 +2,7 @@
 
 ## [0.1.2] — 2026-09-06
 ### Added
+- GRUB bootloader customization support: detects GRUB, installs themes to `/boot/grub/themes/`, updates `GRUB_THEME` in `/etc/default/grub`, backs up original config, and regenerates `grub.cfg` via `grub-mkconfig` / `update-grub`
 - Scriptless dotfile repo support: AI model automatically synthesizes install steps by mapping app config folders to `~/.config/` and dotfiles to `$HOME`, even without `install.sh` or setup scripts
 - Enhanced offline rule engine with multi-pattern detection for root-level config directories and software configs
 - Added `ricer update` command to pull latest releases from GitHub

@@ -60,6 +60,7 @@ execute_steps() {
       stow)        _do_stow "$repo_dir" "${args[@]}" ;;
       copy)        _backup_copy "$repo_dir" "${args[@]}" ;;
       symlink)     _backup_link "$repo_dir" "${args[@]}" ;;
+      grub_theme)  _install_grub_theme "$repo_dir" "${args[@]}" ;;
       run_cmd)     _run_in_repo "$repo_dir" "${args[@]}" ;;
       *)           log_warn "Unknown step type '${type}' — skipping." ;;
     esac
@@ -168,6 +169,81 @@ _run_in_repo() {
   (cd "$repo_dir" && bash -c "$*")
 }
 
+# ── Install GRUB Theme ────────────────────────────────────────────────────────
+_install_grub_theme() {
+  local repo_dir="$1" src="${2:-}" theme_name="${3:-}"
+  local src_full="${repo_dir}/${src}"
+
+  if [ -z "$src" ]; then
+    src_full="$repo_dir"
+  fi
+
+  if [ -z "$theme_name" ]; then
+    theme_name=$(basename "$src_full")
+    [ "$theme_name" = "." ] && theme_name="custom-rice"
+  fi
+
+  log_info "Configuring GRUB theme: ${theme_name}..."
+
+  # Locate themes directory
+  local themes_dir="/boot/grub/themes"
+  if [ -d "/boot/grub2" ] && [ ! -d "/boot/grub" ]; then
+    themes_dir="/boot/grub2/themes"
+  fi
+
+  local target_dir="${themes_dir}/${theme_name}"
+
+  # Back up /etc/default/grub if present
+  if [ -f "/etc/default/grub" ] && [ "${RICER_NO_BACKUP:-false}" = "false" ]; then
+    mkdir -p "$RICER_BACKUP_DIR"
+    cp "/etc/default/grub" "$RICER_BACKUP_DIR/grub.default.bak" 2>/dev/null || true
+    log_dim "Backed up /etc/default/grub -> $RICER_BACKUP_DIR"
+  fi
+
+  log_dim "Installing theme files to ${target_dir}..."
+  sudo mkdir -p "$themes_dir"
+  sudo rm -rf "$target_dir"
+  sudo cp -r "$src_full" "$target_dir"
+
+  # Find theme.txt
+  local theme_txt
+  if [ -f "${target_dir}/theme.txt" ]; then
+    theme_txt="${target_dir}/theme.txt"
+  else
+    theme_txt=$(sudo find "$target_dir" -maxdepth 2 -name "theme.txt" 2>/dev/null | head -1)
+  fi
+
+  if [ -n "$theme_txt" ] && [ -f "/etc/default/grub" ]; then
+    log_dim "Updating GRUB_THEME in /etc/default/grub..."
+    if grep -q "^GRUB_THEME=" /etc/default/grub 2>/dev/null; then
+      sudo sed -i "s|^GRUB_THEME=.*|GRUB_THEME=\"${theme_txt}\"|" /etc/default/grub
+    elif grep -q "^#GRUB_THEME=" /etc/default/grub 2>/dev/null; then
+      sudo sed -i "s|^#GRUB_THEME=.*|GRUB_THEME=\"${theme_txt}\"|" /etc/default/grub
+    else
+      echo "GRUB_THEME=\"${theme_txt}\"" | sudo tee -a /etc/default/grub >/dev/null
+    fi
+
+    # Update GRUB configuration
+    log_dim "Regenerating GRUB config..."
+    if command -v update-grub &>/dev/null; then
+      sudo update-grub
+    elif command -v grub-mkconfig &>/dev/null; then
+      local grub_cfg="/boot/grub/grub.cfg"
+      [ -f "/boot/grub2/grub.cfg" ] && grub_cfg="/boot/grub2/grub.cfg"
+      sudo grub-mkconfig -o "$grub_cfg"
+    elif command -v grub2-mkconfig &>/dev/null; then
+      local grub_cfg="/boot/grub2/grub.cfg"
+      [ -f "/boot/grub/grub.cfg" ] && grub_cfg="/boot/grub/grub.cfg"
+      sudo grub2-mkconfig -o "$grub_cfg"
+    else
+      log_warn "GRUB config generator not found. Run grub-mkconfig manually."
+    fi
+    log_ok "GRUB theme applied: ${theme_name}"
+  else
+    log_warn "theme.txt or /etc/default/grub not found; theme files copied to ${target_dir}."
+  fi
+}
+
 # ── Restore last backup ───────────────────────────────────────────────────────
 restore_latest_backup() {
   local latest
@@ -178,5 +254,20 @@ restore_latest_backup() {
   fi
   log_info "Restoring from: $latest"
   cp -r "$latest"/. "$HOME/"
+
+  # Restore GRUB config if backed up
+  if [ -f "$latest/grub.default.bak" ]; then
+    log_info "Restoring /etc/default/grub..."
+    sudo cp "$latest/grub.default.bak" /etc/default/grub
+    if command -v update-grub &>/dev/null; then
+      sudo update-grub
+    elif command -v grub-mkconfig &>/dev/null; then
+      local grub_cfg="/boot/grub/grub.cfg"
+      [ -f "/boot/grub2/grub.cfg" ] && grub_cfg="/boot/grub2/grub.cfg"
+      sudo grub-mkconfig -o "$grub_cfg"
+    fi
+    log_ok "GRUB configuration restored."
+  fi
+
   log_ok "Restore complete."
 }

@@ -17,6 +17,26 @@ rules_detect_plan() {
     fi
   done
 
+  # ── Pattern 1b: GRUB bootloader theme ─────────────────────────────────────────
+  if [ -f "$repo_dir/theme.txt" ]; then
+    log_dim "Rule: root GRUB theme (theme.txt detected)"
+    local tname
+    tname=$(basename "$repo_dir")
+    plan=$(jq -cn --arg t "$tname" '[{"type":"grub_theme","args":[".",$t],"description":"Install GRUB bootloader theme"}]')
+    echo "$plan"; return 0
+  fi
+
+  local grub_dir
+  grub_dir=$(find "$repo_dir" -maxdepth 2 -name "theme.txt" -exec dirname {} \; 2>/dev/null | head -1)
+  if [ -n "$grub_dir" ]; then
+    local rel_grub_dir="${grub_dir#$repo_dir/}"
+    local tname
+    tname=$(basename "$grub_dir")
+    log_dim "Rule: GRUB theme in subdirectory ($rel_grub_dir)"
+    plan=$(jq -cn --arg d "$rel_grub_dir" --arg t "$tname" '[{"type":"grub_theme","args":[$d,$t],"description":"Install GRUB bootloader theme"}]')
+    echo "$plan"; return 0
+  fi
+
   # ── Pattern 2: chezmoi ───────────────────────────────────────────────────────
   if [ -d "$repo_dir/.chezmoi" ] \
      || find "$repo_dir" -maxdepth 1 -name 'dot_*' | grep -q .; then

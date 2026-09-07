@@ -62,6 +62,21 @@ detect_system() {
   fi
   RICER_ARCH=$(uname -m)
 
+  # ── Bootloader ───────────────────────────────────────────────────────────────
+  RICER_BOOTLOADER="unknown"
+  RICER_HAS_GRUB="false"
+  if command -v grub-install &>/dev/null || command -v grub-mkconfig &>/dev/null || \
+     command -v grub2-mkconfig &>/dev/null || command -v update-grub &>/dev/null || \
+     [ -d /boot/grub ] || [ -d /boot/grub2 ] || [ -f /etc/default/grub ]; then
+    RICER_BOOTLOADER="grub"
+    RICER_HAS_GRUB="true"
+  elif command -v bootctl &>/dev/null && bootctl is-installed &>/dev/null; then
+    RICER_BOOTLOADER="systemd-boot"
+  elif [ -d /boot/loader ]; then
+    RICER_BOOTLOADER="systemd-boot"
+  fi
+
   export RICER_DISTRO RICER_DISTRO_PRETTY RICER_PKG_MANAGERS RICER_PM_CMD \
-         RICER_WM RICER_SESSION RICER_CPU RICER_RAM RICER_GPU RICER_ARCH
+         RICER_WM RICER_SESSION RICER_CPU RICER_RAM RICER_GPU RICER_ARCH \
+         RICER_BOOTLOADER RICER_HAS_GRUB
 }

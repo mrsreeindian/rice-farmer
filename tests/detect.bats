@@ -39,3 +39,11 @@ setup() {
 @test "RICER_SESSION is x11, wayland, or tty" {
   [[ "$RICER_SESSION" =~ ^(x11|wayland|tty)$ ]]
 }
+
+@test "RICER_BOOTLOADER is set" {
+  [ -n "$RICER_BOOTLOADER" ]
+}
+
+@test "RICER_HAS_GRUB is boolean" {
+  [[ "$RICER_HAS_GRUB" =~ ^(true|false)$ ]]
+}

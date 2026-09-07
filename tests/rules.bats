@@ -14,6 +14,14 @@ _tmpdir() { mktemp -d; }
   echo "$result" | jq -e '.[0].type == "run_cmd"'
 }
 
+@test "Pattern 1b: detects GRUB theme with theme.txt" {
+  d=$(_tmpdir)
+  touch "$d/theme.txt"
+  result=$(rules_detect_plan "$d")
+  rm -rf "$d"
+  echo "$result" | jq -e '.[0].type == "grub_theme"'
+}
+
 @test "Pattern 2: detects chezmoi dot_ files" {
   d=$(_tmpdir)
   touch "$d/dot_bashrc" "$d/dot_vimrc"
