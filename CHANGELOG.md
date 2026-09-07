@@ -1,8 +1,8 @@
 # Changelog
 
-## [0.1.0] — 2026-09-07
+## [1.0.0] — 2026-09-07
 ### Added
-- First official release of Rice Farmer
+- First official major release of Rice Farmer v1.0.0
 - Multi-distro detection & support: **Ubuntu/Debian** (`apt`), **Red Hat/Fedora/CentOS/Rocky** (`dnf`/`yum`), **Arch Linux** (`pacman`), **Gentoo** (`emerge`), and **openSUSE/SUSE** (`zypper`)
 - GRUB bootloader customization: automatic theme installation, `/etc/default/grub` configuration, safe backup & restore, and `grub-mkconfig`/`update-grub` regeneration
 - Scriptless dotfile repo support: intelligent automatic mapping of app configs to `~/.config/` and dotfiles to `$HOME`
