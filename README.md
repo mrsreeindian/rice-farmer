@@ -8,6 +8,7 @@
 
 **Rice Farmer** is a lightweight (~30 KB), pure-Bash tool that:
 - Auto-detects your distro (Ubuntu/Debian, Red Hat/Fedora/CentOS, Arch, Gentoo, openSUSE), WM, package managers, hardware, and bootloader (GRUB)
+- **Barebones Arch & Gentoo support**: Automatically detects minimal/TTY-only systems without a GUI and installs the required DE/WM stack, display servers/compositors, audio (`pipewire`), portals, waybar, terminals, and fonts
 - Uses a free cloud AI model (no API key required) to intelligently install any rice, dotfiles, or GRUB bootloader themes
 - Backs up your existing configs (including `/etc/default/grub`) before touching anything
 - Works fully offline using a built-in rule engine

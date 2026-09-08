@@ -80,15 +80,19 @@ execute_steps() {
 _pkg_install() {
   [ $# -eq 0 ] && return 0
   log_dim "Installing packages: $*"
+  local sudo_cmd="sudo"
+  if [ "$EUID" -eq 0 ] || ! command -v sudo &>/dev/null; then
+    sudo_cmd=""
+  fi
   case "$RICER_PM_CMD" in
-    pacman)       sudo pacman -S --noconfirm --needed "$@" ;;
-    apt|apt-get)  sudo apt-get update -qq && sudo apt-get install -y "$@" ;;
-    dnf)          sudo dnf install -y "$@" ;;
-    yum)          sudo yum install -y "$@" ;;
-    zypper)       sudo zypper --non-interactive install "$@" ;;
-    emerge)       sudo emerge --ask=n --verbose "$@" ;;
-    apk)          sudo apk add "$@" ;;
-    xbps-install) sudo xbps-install -y "$@" ;;
+    pacman)       $sudo_cmd pacman -S --noconfirm --needed "$@" ;;
+    apt|apt-get)  $sudo_cmd apt-get update -qq && $sudo_cmd apt-get install -y "$@" ;;
+    dnf)          $sudo_cmd dnf install -y "$@" ;;
+    yum)          $sudo_cmd yum install -y "$@" ;;
+    zypper)       $sudo_cmd zypper --non-interactive install "$@" ;;
+    emerge)       $sudo_cmd emerge --ask=n --verbose --noreplace "$@" ;;
+    apk)          $sudo_cmd apk add "$@" ;;
+    xbps-install) $sudo_cmd xbps-install -y "$@" ;;
     brew)         brew install "$@" ;;
     *)
       log_warn "Unknown package manager '${RICER_PM_CMD}' — skipping package install."

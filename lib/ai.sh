@@ -72,12 +72,28 @@ CRITICAL INSTRUCTIONS:
    - If the repository contains a GRUB theme (theme.txt, background images, fonts), use {"type":"grub_theme","args":["<theme_dir_or_.>","<theme_name>"],"description":"Install GRUB bootloader theme"}.
    - If files are dotfiles for the home directory (e.g., .bashrc, .zshrc, .tmux.conf), map them to "~/<file>".
    - If the repository has a GNU Stow structure (packages containing .config or dotfiles), use {"type":"stow","args":["."],"description":"Stow dotfiles"}.
-   - Identify any obvious software dependencies from the configs or README (e.g. hyprland, waybar, rofi, kitty, neovim, tmux) and include an "install_pkg" step for package manager (${RICER_PM_CMD:-pacman}).
-2. Never return an empty array if there are any config files or directories present.
+
+2. BAREBONES ARCH / GENTOO SYSTEM HANDLING (is_barebones: ${RICER_IS_BAREBONES:-false}):
+   - If the system is barebones (TTY only, no window manager or desktop environment installed):
+     YOU MUST AUTO-INSTALL THE DESKTOP ENVIRONMENT / WINDOW MANAGER AND ALL SUPPORTING INFRASTRUCTURE:
+     * Identify the target WM/DE from the repository (e.g., Hyprland, Sway, i3, BSPWM, River, Awesome, KDE Plasma, GNOME, XFCE).
+     * Add an initial "install_pkg" step installing the WM/DE and core display infrastructure:
+       - On Arch Linux (${RICER_PM_CMD:-pacman}):
+         * If Hyprland rice: ["hyprland", "waybar", "wofi", "kitty", "polkit-kde-agent", "xdg-desktop-portal-hyprland", "qt5-wayland", "qt6-wayland", "pipewire", "pipewire-pulse", "wireplumber", "ttf-font-awesome", "noto-fonts"]
+         * If Sway rice: ["sway", "swaybg", "waybar", "wofi", "foot", "polkit", "xdg-desktop-portal-wlr"]
+         * If i3 rice: ["xorg-server", "xorg-xinit", "i3-wm", "i3status", "dmenu", "alacritty", "picom", "feh"]
+         * If KDE/Plasma: ["plasma-meta", "sddm"]
+         * If GNOME: ["gnome", "gdm"]
+       - On Gentoo (${RICER_PM_CMD:-emerge}):
+         * Target proper package atoms (e.g., gui-wm/hyprland, gui-wm/sway, x11-wm/i3, gui-apps/waybar, x11-terms/kitty, media-video/pipewire).
+     * Also install any application dependencies found in the configs (e.g. rofi, dunst, mako, fastfetch, thunar, pavucontrol, brightnessctl).
+
+3. Never return an empty array if there are any config files or directories present.
 
 System context:
   distro: ${RICER_DISTRO} (${RICER_DISTRO_PRETTY})
   distro_family: ${RICER_DISTRO_FAMILY} (e.g. ubuntu/debian, redhat, arch, gentoo, opensuse)
+  is_barebones: ${RICER_IS_BAREBONES:-false}
   wm: ${RICER_WM}
   session: ${RICER_SESSION}
   bootloader: ${RICER_BOOTLOADER} (grub_available: ${RICER_HAS_GRUB})

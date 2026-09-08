@@ -55,3 +55,8 @@ setup() {
 @test "RICER_PM_CMD matches supported package managers or empty" {
   [[ "$RICER_PM_CMD" =~ ^(pacman|apt|apt-get|dnf|yum|zypper|emerge|apk|xbps-install|brew|)$ ]]
 }
+
+@test "RICER_IS_BAREBONES is boolean" {
+  [[ "$RICER_IS_BAREBONES" =~ ^(true|false)$ ]]
+}
+

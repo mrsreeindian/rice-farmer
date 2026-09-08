@@ -16,19 +16,21 @@ detect_system() {
   fi
 
   # Distro family classification
-  RICER_DISTRO_FAMILY="unknown"
-  case "$RICER_DISTRO $RICER_DISTRO_LIKE" in
-    *ubuntu*|*debian*|*pop*|*mint*|*elementary*)
-      RICER_DISTRO_FAMILY="ubuntu/debian" ;;
-    *rhel*|*redhat*|*fedora*|*centos*|*rocky*|*alma*)
-      RICER_DISTRO_FAMILY="redhat" ;;
-    *arch*|*manjaro*|*endeavouros*|*omarchy*|*garuda*|*artix*)
-      RICER_DISTRO_FAMILY="arch" ;;
-    *gentoo*|*funtoo*)
-      RICER_DISTRO_FAMILY="gentoo" ;;
-    *suse*|*opensuse*)
-      RICER_DISTRO_FAMILY="opensuse" ;;
-  esac
+  if [ -z "${RICER_DISTRO_FAMILY:-}" ]; then
+    RICER_DISTRO_FAMILY="unknown"
+    case "$RICER_DISTRO $RICER_DISTRO_LIKE" in
+      *ubuntu*|*debian*|*pop*|*mint*|*elementary*)
+        RICER_DISTRO_FAMILY="ubuntu/debian" ;;
+      *rhel*|*redhat*|*fedora*|*centos*|*rocky*|*alma*)
+        RICER_DISTRO_FAMILY="redhat" ;;
+      *arch*|*manjaro*|*endeavouros*|*omarchy*|*garuda*|*artix*)
+        RICER_DISTRO_FAMILY="arch" ;;
+      *gentoo*|*funtoo*)
+        RICER_DISTRO_FAMILY="gentoo" ;;
+      *suse*|*opensuse*)
+        RICER_DISTRO_FAMILY="opensuse" ;;
+    esac
+  fi
 
   # ── Package managers ─────────────────────────────────────────────────────────
   RICER_PKG_MANAGERS=""
@@ -39,33 +41,34 @@ detect_system() {
   [ -z "$RICER_PKG_MANAGERS" ] && RICER_PKG_MANAGERS="unknown"
 
   # Canonical PM (prioritized according to distro family)
-  RICER_PM_CMD=""
-  case "$RICER_DISTRO_FAMILY" in
-    ubuntu/debian)
-      for pm in apt apt-get; do command -v "$pm" &>/dev/null && { RICER_PM_CMD="$pm"; break; }; done ;;
-    redhat)
-      for pm in dnf yum; do command -v "$pm" &>/dev/null && { RICER_PM_CMD="$pm"; break; }; done ;;
-    arch)
-      command -v pacman &>/dev/null && RICER_PM_CMD="pacman" ;;
-    gentoo)
-      command -v emerge &>/dev/null && RICER_PM_CMD="emerge" ;;
-    opensuse)
-      command -v zypper &>/dev/null && RICER_PM_CMD="zypper" ;;
-  esac
+  if [ -z "${RICER_PM_CMD:-}" ]; then
+    case "$RICER_DISTRO_FAMILY" in
+      ubuntu/debian)
+        for pm in apt apt-get; do command -v "$pm" &>/dev/null && { RICER_PM_CMD="$pm"; break; }; done ;;
+      redhat)
+        for pm in dnf yum; do command -v "$pm" &>/dev/null && { RICER_PM_CMD="$pm"; break; }; done ;;
+      arch)
+        command -v pacman &>/dev/null && RICER_PM_CMD="pacman" ;;
+      gentoo)
+        command -v emerge &>/dev/null && RICER_PM_CMD="emerge" ;;
+      opensuse)
+        command -v zypper &>/dev/null && RICER_PM_CMD="zypper" ;;
+    esac
 
-  if [ -z "$RICER_PM_CMD" ]; then
-    for pm in pacman apt dnf zypper emerge apk xbps-install yum brew; do
-      if command -v "$pm" &>/dev/null; then
-        RICER_PM_CMD="$pm"; break
-      fi
-    done
+    if [ -z "$RICER_PM_CMD" ]; then
+      for pm in pacman apt dnf zypper emerge apk xbps-install yum brew; do
+        if command -v "$pm" &>/dev/null; then
+          RICER_PM_CMD="$pm"; break
+        fi
+      done
+    fi
   fi
 
   # ── Window Manager / Desktop Environment ────────────────────────────────────
   RICER_WM="${XDG_CURRENT_DESKTOP:-${DESKTOP_SESSION:-}}"
   if [ -z "$RICER_WM" ]; then
     for wm in hyprland sway i3 openbox bspwm xfwm4 kwin_x11 kwin_wayland \
-              mutter marco qtile herbstluftwm dwm awesome xmonad; do
+              mutter marco qtile herbstluftwm dwm awesome xmonad gnome-shell; do
       pgrep -x "$wm" &>/dev/null && RICER_WM="$wm" && break
     done
   fi
@@ -77,7 +80,26 @@ detect_system() {
   else
     RICER_SESSION="tty"
   fi
-  RICER_WM="${RICER_WM:-tty (${RICER_SESSION})}"
+
+  # Barebones detection (e.g. minimal Arch or Gentoo installed without DE/WM)
+  if [ -z "${RICER_IS_BAREBONES:-}" ]; then
+    RICER_IS_BAREBONES="false"
+    if [ -z "$RICER_WM" ] || [ "$RICER_WM" = "tty" ] || [ "$RICER_SESSION" = "tty" ]; then
+      # Check if any common display server or compositor binaries exist
+      if ! command -v Xorg &>/dev/null && ! command -v X &>/dev/null && \
+         ! command -v hyprland &>/dev/null && ! command -v sway &>/dev/null && \
+         ! command -v wayfire &>/dev/null && ! command -v i3 &>/dev/null && \
+         ! command -v gnome-shell &>/dev/null && ! command -v plasma_session &>/dev/null && \
+         ! command -v startxfce4 &>/dev/null; then
+        RICER_IS_BAREBONES="true"
+      fi
+    fi
+  fi
+  if [ "$RICER_IS_BAREBONES" = "true" ]; then
+    RICER_WM="none (barebones)"
+  else
+    RICER_WM="${RICER_WM:-tty (${RICER_SESSION})}"
+  fi
 
   # ── Hardware (read from /proc — no extra tools) ──────────────────────────────
   RICER_CPU=$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null \
@@ -110,6 +132,6 @@ detect_system() {
 
   export RICER_DISTRO RICER_DISTRO_LIKE RICER_DISTRO_FAMILY RICER_DISTRO_PRETTY \
          RICER_PKG_MANAGERS RICER_PM_CMD \
-         RICER_WM RICER_SESSION RICER_CPU RICER_RAM RICER_GPU RICER_ARCH \
+         RICER_WM RICER_SESSION RICER_IS_BAREBONES RICER_CPU RICER_RAM RICER_GPU RICER_ARCH \
          RICER_BOOTLOADER RICER_HAS_GRUB
 }

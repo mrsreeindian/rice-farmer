@@ -78,13 +78,17 @@ while [[ $# -gt 0 ]]; do
     --model)      RICER_POLLIN_MODEL="$2"; shift 2 ;;
     --version|-v) echo "Rice Farmer v${VERSION}"; exit 0 ;;
     --help|-h)    usage; exit 0 ;;
-    http*|git*)
+    http*|git*|/*|./*|../*)
       GITHUB_URL="$1"; shift
       [ -z "$SUBCOMMAND" ] && SUBCOMMAND="install"
       ;;
     *)
-      log_error "Unknown argument: $1"
-      usage; exit 1
+      if [ "$SUBCOMMAND" = "install" ] && [ -z "$GITHUB_URL" ]; then
+        GITHUB_URL="$1"; shift
+      else
+        log_error "Unknown argument: $1"
+        usage; exit 1
+      fi
       ;;
   esac
 done

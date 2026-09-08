@@ -56,7 +56,11 @@ print_system_table() {
   echo -e "${CYAN}+${line}+${RESET}"
   _row() { printf "${CYAN}|${RESET}  ${BOLD}%-10s${RESET} : %-$((w-15))s${CYAN}|${RESET}\n" "$1" "${2:0:$((w-15))}"; }
   _row "Distro"  "${RICER_DISTRO_PRETTY}"
-  _row "WM"      "${RICER_WM}"
+  if [ "${RICER_IS_BAREBONES:-false}" = "true" ]; then
+    _row "GUI/WM"  "none (barebones)"
+  else
+    _row "WM"      "${RICER_WM}"
+  fi
   _row "Pkgs"    "${RICER_PKG_MANAGERS}"
   _row "CPU"     "${RICER_CPU}"
   _row "RAM"     "${RICER_RAM}"

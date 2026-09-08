@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+### Added
+- Barebones Arch Linux and Gentoo support:
+  - Automatic detection of minimal TTY environments without any DE/WM or display server installed (`RICER_IS_BAREBONES`)
+  - Target WM/DE identification (Hyprland, Sway, i3, BSPWM, River, Awesome, Qtile, DWM, KDE Plasma, GNOME, XFCE)
+  - Auto-installation of window managers, compositors, X11/Wayland backends, audio infrastructure (`pipewire`, `wireplumber`), desktop portals, status bars, terminals, and fonts
+  - Distribution-specific package mappings with Arch Linux package names (`pacman`) and Gentoo category atoms (`emerge`, e.g. `gui-wm/hyprland`, `x11-wm/i3`)
+  - Both cloud AI engine and built-in offline rule engine support barebones auto-installation
+  - Fallback support for root/chroot environments without `sudo`
+
 ## [1.0.0] — 2026-09-07
 ### Added
 - First official major release of Rice Farmer v1.0.0

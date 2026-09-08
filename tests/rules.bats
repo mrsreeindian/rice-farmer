@@ -69,3 +69,34 @@ _tmpdir() { mktemp -d; }
   rm -rf "$d"
   echo "$result" | jq -e '. == []'
 }
+
+@test "Barebones Arch auto-installs Hyprland and core display environment" {
+  d=$(_tmpdir)
+  mkdir -p "$d/hypr"
+  touch "$d/hypr/hyprland.conf"
+  RICER_IS_BAREBONES="true" RICER_DISTRO_FAMILY="arch" RICER_PM_CMD="pacman" \
+    result=$(rules_detect_plan "$d")
+  rm -rf "$d"
+  echo "$result" | jq -e '.[0].type == "install_pkg" and (.[0].args | contains(["hyprland", "waybar"]))'
+}
+
+@test "Barebones Gentoo auto-installs Hyprland atoms" {
+  d=$(_tmpdir)
+  mkdir -p "$d/hypr"
+  touch "$d/hypr/hyprland.conf"
+  RICER_IS_BAREBONES="true" RICER_DISTRO_FAMILY="gentoo" RICER_PM_CMD="emerge" \
+    result=$(rules_detect_plan "$d")
+  rm -rf "$d"
+  echo "$result" | jq -e '.[0].type == "install_pkg" and (.[0].args | contains(["gui-wm/hyprland", "gui-apps/waybar"]))'
+}
+
+@test "Barebones Arch auto-installs i3 and X11 stack" {
+  d=$(_tmpdir)
+  mkdir -p "$d/.config/i3"
+  touch "$d/.config/i3/config"
+  RICER_IS_BAREBONES="true" RICER_DISTRO_FAMILY="arch" RICER_PM_CMD="pacman" \
+    result=$(rules_detect_plan "$d")
+  rm -rf "$d"
+  echo "$result" | jq -e '.[0].type == "install_pkg" and (.[0].args | contains(["xorg-server", "i3-wm"]))'
+}
+
