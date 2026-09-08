@@ -255,18 +255,18 @@ cmd_update() {
   # Installed mode (via curl installer)
   local remote_version=""
 
-  # 1. Try GitHub releases API (fast, authoritative, no CDN caching)
+  # 1. Try GitHub tags API first (authoritative on git push, immediate)
   remote_version=$(curl -fsSL --max-time 10 \
     -H "Accept: application/vnd.github.v3+json" \
-    "https://api.github.com/repos/mrsreeindian/rice-farmer/releases/latest" 2>/dev/null \
-    | jq -r '.tag_name // empty' 2>/dev/null || true)
+    "https://api.github.com/repos/mrsreeindian/rice-farmer/tags" 2>/dev/null \
+    | jq -r '.[0].name // empty' 2>/dev/null || true)
 
-  # 2. Fallback to GitHub tags API if no releases published yet
+  # 2. Fallback to GitHub releases API
   if [ -z "$remote_version" ] || [ "$remote_version" = "null" ]; then
     remote_version=$(curl -fsSL --max-time 10 \
       -H "Accept: application/vnd.github.v3+json" \
-      "https://api.github.com/repos/mrsreeindian/rice-farmer/tags" 2>/dev/null \
-      | jq -r '.[0].name // empty' 2>/dev/null || true)
+      "https://api.github.com/repos/mrsreeindian/rice-farmer/releases/latest" 2>/dev/null \
+      | jq -r '.tag_name // empty' 2>/dev/null || true)
   fi
 
   # 3. Fallback to raw .version with cache-busting timestamp
@@ -284,7 +284,11 @@ cmd_update() {
     die "Could not check remote version from GitHub. Check your internet connection."
   fi
 
-  if [ "$current_version" != "dev" ] && [ "$current_version" = "$remote_version" ]; then
+  _ver_lte() {
+    [ "$1" = "$2" ] || [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -n 1)" = "$1" ]
+  }
+
+  if [ "$current_version" != "dev" ] && _ver_lte "$remote_version" "$current_version"; then
     log_ok "Already on the latest version (v${current_version})."
     return 0
   fi
