@@ -42,7 +42,21 @@ A Linux ricing utility that can:
 - Tailored for Arch packages and Gentoo Portage atoms (e.g. `gui-wm/hyprland`, `x11-wm/i3`, `media-video/pipewire`).
 - Works smoothly in root/chroot environments without requiring `sudo`.
 
-### 3. Scriptless Dotfile Repositories
+### 3. Pre-Rice Profiles & Conflict Resolution Engine (v1.1.0)
+- **Dedicated Profiles**: Separate configuration profiles for **Omarchy**, **CachyOS**, **Garuda Linux**, **Omakub**, and modern pre-rices (e.g. **Caelestia**, **Hyprdots**).
+- **Collision & Conflict Warning**: Automatically detects potential collisions between active or installed desktop components and incoming rices:
+  - Conflicting notification daemons (`dunst` vs `mako` vs `swaync`)
+  - Conflicting status bars (`waybar` vs `polybar` vs `ags` vs `latte-dock`)
+  - Conflicting wallpaper daemons (`swww` vs `hyprpaper` vs `mpvpaper`)
+  - Conflicting theme switchers, autostart services, and shell hooks
+- **Automated Conflict Avoidance & Quarantine**:
+  - Halts colliding background processes before new rice deployment
+  - Quarantines and isolates conflicting autostart configs and includes into timestamped backups
+- **Automatic Dependency Resolution**:
+  - Automatically identifies tools and dependencies required by the incoming rice that are missing on the host
+  - Injects native package manager installation steps into the plan automatically
+
+### 4. Scriptless Dotfile Repositories
 - Handles repositories that lack any install or setup script.
 - Intelligently maps folders and configs:
   - `.config/` directories into `~/.config/`
@@ -50,19 +64,19 @@ A Linux ricing utility that can:
   - Root dotfiles (`.bashrc`, `.zshrc`, `.tmux.conf`, etc.) into `~/`
   - GNU Stow multi-package layouts and chezmoi dotfile repositories
 
-### 4. GRUB Bootloader Customization
+### 5. GRUB Bootloader Customization
 - Detects GRUB bootloader presence (`RICER_HAS_GRUB`).
 - Identifies GRUB theme repos and directories containing `theme.txt`.
 - Automatically copies themes to `/boot/grub/themes/` (or `/boot/grub2/themes/`).
 - Backs up `/etc/default/grub` and safely sets `GRUB_THEME`.
 - Automatically executes `grub-mkconfig` or `update-grub`.
 
-### 5. Safe Backup & Restore System
+### 6. Safe Backup & Restore System
 - Automatic timestamped backups of displaced configs into `~/.config-backup-<timestamp>` before modifying anything.
 - Subcommand `ricer restore` to quickly roll back to the latest backup.
 - Configurable with `--no-backup` flag for ephemeral or disposable environments.
 
-### 6. Offline Rule Engine Fallback
+### 7. Offline Rule Engine Fallback
 - Built-in deterministic pattern matcher supporting 8 structural patterns:
   - Explicit scripts (`install.sh`, `setup.sh`, `rice.sh`, etc.)
   - GRUB bootloader themes
@@ -74,7 +88,7 @@ A Linux ricing utility that can:
   - Root app config directories
 - Automatically used when offline (`--offline`) or when cloud AI service is unreachable.
 
-### 7. CLI Lifecycle & Self-Management
+### 8. CLI Lifecycle & Self-Management
 - `ricer update`: Atomic self-update command supporting both git clones and cURL-installed setups (with GitHub release and tag API fallbacks).
 - `ricer uninstall`: Clean interactive removal of binary, libraries, and share files while preserving user backups.
 - `ricer detect`: Formatted system diagnostic display compatible with pure ASCII terminals and minimal TTYs.
