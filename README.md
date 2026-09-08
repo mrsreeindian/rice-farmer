@@ -2,7 +2,7 @@
 
 > Install any Linux rice/dotfiles from a GitHub URL — in one command.
 
-[![version](https://img.shields.io/badge/version-1.1.0-blue)](#)
+[![version](https://img.shields.io/badge/version-1.1.1-blue)](#)
 [![license](https://img.shields.io/badge/license-MIT-green)](#)
 [![shell](https://img.shields.io/badge/shell-bash-orange)](#)
 
@@ -62,6 +62,7 @@ ricer uninstall
 | `--dry-run` | Show the plan, don't execute |
 | `--no-backup` | Skip config backup (use with care) |
 | `--offline` | Force rule engine, skip AI call |
+| `--clean-orphans` | Remove orphan/unused packages after install |
 | `--model <name>` | Override AI model name (default: `openai`) |
 
 ---

@@ -92,4 +92,5 @@ A Linux ricing utility that can:
 - `ricer update`: Atomic self-update command supporting both git clones and cURL-installed setups (with GitHub release and tag API fallbacks).
 - `ricer uninstall`: Clean interactive removal of binary, libraries, and share files while preserving user backups.
 - `ricer detect`: Formatted system diagnostic display compatible with pure ASCII terminals and minimal TTYs.
-- CLI flags: `--dry-run`, `--offline`, `--no-backup`, `--model`, `--version`, `--help`.
+- **Orphan package pruning**: `--clean-orphans` flag (aliases: `--remove-orphans`, `--prune-orphans`) to automatically identify and clean up unneeded dependencies and orphaned packages across all supported package managers (`pacman -Rns $(pacman -Qtdq)`, `apt autoremove`, `dnf autoremove`, `emerge --depclean`, etc.) after rice installation.
+- CLI flags: `--dry-run`, `--offline`, `--no-backup`, `--clean-orphans`, `--model`, `--version`, `--help`.

@@ -102,6 +102,80 @@ _pkg_install() {
   esac
 }
 
+# ── Remove orphan/unused packages ─────────────────────────────────────────────
+clean_orphan_packages() {
+  local dry_run="${1:-false}"
+  log_info "Checking for orphan / unused packages..."
+
+  local sudo_cmd="sudo"
+  if [ "$EUID" -eq 0 ] || ! command -v sudo &>/dev/null; then
+    sudo_cmd=""
+  fi
+
+  if [ "$dry_run" = "true" ]; then
+    log_dim "DRY-RUN: remove orphan packages for package manager (${RICER_PM_CMD:-none})"
+    return 0
+  fi
+
+  case "$RICER_PM_CMD" in
+    pacman)
+      local orphans
+      orphans=$(pacman -Qtdq 2>/dev/null || true)
+      if [ -n "$orphans" ]; then
+        log_info "Removing orphan packages (pacman): $orphans"
+        # shellcheck disable=SC2086
+        $sudo_cmd pacman -Rns --noconfirm $orphans
+        log_ok "Orphan packages removed successfully."
+      else
+        log_ok "No orphan packages found."
+      fi
+      ;;
+    apt|apt-get)
+      log_info "Removing unused packages (apt autoremove)..."
+      $sudo_cmd apt-get autoremove -y
+      log_ok "Unused packages cleaned up."
+      ;;
+    dnf)
+      log_info "Removing unused packages (dnf autoremove)..."
+      $sudo_cmd dnf autoremove -y
+      log_ok "Unused packages cleaned up."
+      ;;
+    yum)
+      log_info "Removing unused packages (yum autoremove)..."
+      $sudo_cmd yum autoremove -y
+      log_ok "Unused packages cleaned up."
+      ;;
+    zypper)
+      log_info "Removing orphaned packages (zypper rm -u)..."
+      $sudo_cmd zypper --non-interactive rm -u 2>/dev/null || true
+      log_ok "Orphan packages cleaned up."
+      ;;
+    emerge)
+      log_info "Cleaning unneeded dependencies (emerge --depclean)..."
+      $sudo_cmd emerge --ask=n --depclean
+      log_ok "Gentoo dependencies cleaned up."
+      ;;
+    xbps-install)
+      log_info "Removing orphan packages (xbps-remove -o)..."
+      $sudo_cmd xbps-remove -o -y 2>/dev/null || true
+      log_ok "Void orphan packages removed."
+      ;;
+    apk)
+      log_info "Cleaning packages (apk cache)..."
+      $sudo_cmd apk cache clean 2>/dev/null || true
+      log_ok "Apk cache cleaned."
+      ;;
+    brew)
+      log_info "Removing unused Homebrew formulae (brew autoremove)..."
+      brew autoremove
+      log_ok "Homebrew formulae cleaned."
+      ;;
+    *)
+      log_warn "Orphan package removal not supported for package manager '${RICER_PM_CMD}'."
+      ;;
+  esac
+}
+
 # ── Conflict resolution ───────────────────────────────────────────────────────
 _resolve_conflict() {
   local action="$1"; shift

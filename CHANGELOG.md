@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.1.1] — 2026-09-08
+### Added
+- `--clean-orphans` flag (with `--remove-orphans` and `--prune-orphans` aliases): automatically removes unused / orphan packages across supported package managers (`pacman`, `apt`, `dnf`, `yum`, `zypper`, `emerge`, `xbps-remove`, `brew`) after rice installation.
+
 ## [1.1.0] — 2026-09-08
 ### Added
 - Pre-rice environment detection & profile configurations:

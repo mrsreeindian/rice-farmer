@@ -36,6 +36,7 @@ RICER_DRY_RUN=false
 RICER_NO_BACKUP=false
 RICER_OFFLINE=false
 RICER_POLLIN_MODEL="openai"
+RICER_CLEAN_ORPHANS=false
 
 # ── Usage ─────────────────────────────────────────────────────────────────────
 usage() {
@@ -51,16 +52,18 @@ ${BOLD}USAGE${RESET}
   ricer uninstall               Remove Rice Farmer from the system
 
 ${BOLD}FLAGS${RESET}
-  --dry-run      Show the install plan without executing
-  --no-backup    Skip config backup (dangerous!)
-  --offline      Skip AI call, use built-in rule engine only
-  --model <name> AI model to use (default: openai)
-  --version      Print version and exit
-  --help         Show this help
+  --dry-run        Show the install plan without executing
+  --no-backup      Skip config backup (dangerous!)
+  --offline        Skip AI call, use built-in rule engine only
+  --clean-orphans  Remove orphan/unused packages after installation
+  --model <name>   AI model to use (default: openai)
+  --version        Print version and exit
+  --help           Show this help
 
 ${BOLD}EXAMPLES${RESET}
   ricer install https://github.com/username/dotfiles
   ricer install https://github.com/user/hyprland-dots --dry-run
+  ricer install https://github.com/user/hyprland-dots --clean-orphans
   ricer restore
   ricer update
   ricer uninstall
@@ -74,12 +77,13 @@ GITHUB_URL=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     detect|install|restore|update|uninstall) SUBCOMMAND="$1"; shift ;;
-    --dry-run)    RICER_DRY_RUN=true; shift ;;
-    --no-backup)  RICER_NO_BACKUP=true; shift ;;
-    --offline)    RICER_OFFLINE=true; shift ;;
-    --model)      RICER_POLLIN_MODEL="$2"; shift 2 ;;
-    --version|-v) echo "Rice Farmer v${VERSION}"; exit 0 ;;
-    --help|-h)    usage; exit 0 ;;
+    --dry-run)        RICER_DRY_RUN=true; shift ;;
+    --no-backup)      RICER_NO_BACKUP=true; shift ;;
+    --offline)        RICER_OFFLINE=true; shift ;;
+    --clean-orphans|--remove-orphans|--prune-orphans) RICER_CLEAN_ORPHANS=true; shift ;;
+    --model)          RICER_POLLIN_MODEL="$2"; shift 2 ;;
+    --version|-v)     echo "Rice Farmer v${VERSION}"; exit 0 ;;
+    --help|-h)        usage; exit 0 ;;
     http*|git*|/*|./*|../*)
       GITHUB_URL="$1"; shift
       [ -z "$SUBCOMMAND" ] && SUBCOMMAND="install"
@@ -95,7 +99,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-export RICER_NO_BACKUP RICER_OFFLINE RICER_POLLIN_MODEL
+export RICER_NO_BACKUP RICER_OFFLINE RICER_POLLIN_MODEL RICER_CLEAN_ORPHANS
 
 # ── Dependency check ──────────────────────────────────────────────────────────
 check_deps() {
@@ -191,6 +195,9 @@ cmd_install() {
   print_plan "$plan"
 
   if [ "$RICER_DRY_RUN" = "true" ]; then
+    if [ "$RICER_CLEAN_ORPHANS" = "true" ]; then
+      clean_orphan_packages "true"
+    fi
     log_info "Dry-run mode — no changes made."
     trap - EXIT   # disable cleanup trap (keep tmp for inspection)
     log_dim "Temp dir: $tmp_dir"
@@ -205,6 +212,13 @@ cmd_install() {
   echo ""
   execute_steps "$plan" "$tmp_dir" "false"
   echo ""
+
+  # ── Prune orphan packages if requested ────────────────────────────────────
+  if [ "$RICER_CLEAN_ORPHANS" = "true" ]; then
+    clean_orphan_packages "false"
+    echo ""
+  fi
+
   log_ok "${BOLD}Rice applied successfully!${RESET}"
   [ "${RICER_NO_BACKUP}" = "false" ] && [ -d "${RICER_BACKUP_DIR:-}" ] \
     && log_info "Backup: ${RICER_BACKUP_DIR}"
