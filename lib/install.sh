@@ -56,13 +56,14 @@ execute_steps() {
     fi
 
     case "$type" in
-      install_pkg) _pkg_install "${args[@]}" ;;
-      stow)        _do_stow "$repo_dir" "${args[@]}" ;;
-      copy)        _backup_copy "$repo_dir" "${args[@]}" ;;
-      symlink)     _backup_link "$repo_dir" "${args[@]}" ;;
-      grub_theme)  _install_grub_theme "$repo_dir" "${args[@]}" ;;
-      run_cmd)     _run_in_repo "$repo_dir" "${args[@]}" ;;
-      *)           log_warn "Unknown step type '${type}' — skipping." ;;
+      install_pkg)      _pkg_install "${args[@]}" ;;
+      stow)             _do_stow "$repo_dir" "${args[@]}" ;;
+      copy)             _backup_copy "$repo_dir" "${args[@]}" ;;
+      symlink)          _backup_link "$repo_dir" "${args[@]}" ;;
+      grub_theme)       _install_grub_theme "$repo_dir" "${args[@]}" ;;
+      resolve_conflict) _resolve_conflict "${args[@]}" ;;
+      run_cmd)          _run_in_repo "$repo_dir" "${args[@]}" ;;
+      *)                log_warn "Unknown step type '${type}' — skipping." ;;
     esac
 
     local rc=$?
@@ -97,6 +98,51 @@ _pkg_install() {
     *)
       log_warn "Unknown package manager '${RICER_PM_CMD}' — skipping package install."
       return 1
+      ;;
+  esac
+}
+
+# ── Conflict resolution ───────────────────────────────────────────────────────
+_resolve_conflict() {
+  local action="$1"; shift
+  case "$action" in
+    kill_proc)
+      local proc="$1"
+      if pgrep -x "$proc" &>/dev/null; then
+        log_dim "Stopping conflicting process: $proc"
+        killall -q "$proc" 2>/dev/null || pkill -x "$proc" 2>/dev/null || true
+      fi
+      ;;
+    quarantine_file)
+      local target="$1"
+      target="${target/#\~/$HOME}"
+      if [ -e "$target" ]; then
+        log_dim "Quarantining conflicting file: $target"
+        local qdir="${RICER_BACKUP_DIR}/quarantine"
+        mkdir -p "$qdir"
+        cp -a "$target" "$qdir/" 2>/dev/null || true
+        mv "$target" "${target}.ricer-quarantined" 2>/dev/null || true
+      fi
+      ;;
+    backup_quarantine)
+      local target="$1"
+      target="${target/#\~/$HOME}"
+      if [ -e "$target" ]; then
+        log_dim "Backing up pre-rice configuration: $target"
+        local qdir="${RICER_BACKUP_DIR}/quarantine"
+        mkdir -p "$qdir"
+        cp -a "$target" "$qdir/" 2>/dev/null || true
+      fi
+      ;;
+    disable_service)
+      local svc="$1"
+      if command -v systemctl &>/dev/null; then
+        systemctl --user stop "$svc" 2>/dev/null || true
+        systemctl --user disable "$svc" 2>/dev/null || true
+      fi
+      ;;
+    *)
+      log_dim "Conflict resolution: $action $*"
       ;;
   esac
 }

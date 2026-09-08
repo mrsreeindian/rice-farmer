@@ -18,6 +18,8 @@ fi
 source "${LIB}/utils.sh"
 # shellcheck source=lib/detect.sh
 source "${LIB}/detect.sh"
+# shellcheck source=lib/prerice.sh
+source "${LIB}/prerice.sh"
 # shellcheck source=lib/ai.sh
 source "${LIB}/ai.sh"
 # shellcheck source=lib/rules.sh
@@ -149,6 +151,34 @@ cmd_install() {
     plan=$(rules_detect_plan "$tmp_dir") || plan="[]"
   fi
 
+  # ── Pre-Rice & Conflict Analysis ──────────────────────────────────────────
+  local pre_rice="${RICER_PRE_RICE:-none}"
+  [ "$pre_rice" = "none" ] && pre_rice=$(detect_pre_rice 2>/dev/null || echo "none")
+
+  local conflicts=()
+  readarray -t conflicts < <(prerice_check_conflicts "$pre_rice" "$tmp_dir" 2>/dev/null || true)
+  if [ ${#conflicts[@]} -gt 0 ]; then
+    print_conflict_warning "$pre_rice" "${conflicts[@]}"
+    local res_steps
+    res_steps=$(prerice_get_resolutions "$pre_rice" "$tmp_dir" 2>/dev/null || echo "[]")
+    if [ -n "$res_steps" ] && [ "$res_steps" != "[]" ]; then
+      plan=$(jq -c --argjson r "$res_steps" '$r + .' <<< "$plan")
+    fi
+  fi
+
+  # Auto-resolve missing dependencies for new rice on this base
+  local -a missing_deps=()
+  readarray -t missing_deps < <(prerice_get_dependencies "$pre_rice" "$tmp_dir" 2>/dev/null || true)
+  if [ ${#missing_deps[@]} -gt 0 ]; then
+    log_dim "Pre-rice: auto-detected missing dependencies: ${missing_deps[*]}"
+    local dep_json
+    dep_json=$(printf '%s\n' "${missing_deps[@]}" | jq -R . | jq -s .)
+    local dep_step
+    dep_step=$(jq -cn --argjson pkgs "$dep_json" \
+      '{"type":"install_pkg","args":$pkgs,"description":"Auto-install dependencies required by rice"}')
+    plan=$(jq -c --argjson d "$dep_step" '[$d] + .' <<< "$plan")
+  fi
+
   # ── Show plan + confirm ───────────────────────────────────────────────────
   local n
   n=$(echo "$plan" | jq 'length' 2>/dev/null || echo 0)
@@ -276,10 +306,16 @@ cmd_update() {
   mv -f "$tmp_bin" "${bin_dir}/ricer"
 
   # Download libraries
-  for lib in utils detect ai rules install; do
+  for lib in utils detect prerice ai rules install; do
     if ! curl -fsSL --max-time 30 "${repo_raw}/lib/${lib}.sh" -o "${lib_dir}/${lib}.sh"; then
       die "Failed to download lib/${lib}.sh."
     fi
+  done
+
+  # Download pre-rice profiles
+  mkdir -p "${lib_dir}/profiles"
+  for profile in omarchy cachyos garuda omakub caelestia generic; do
+    curl -fsSL --max-time 30 "${repo_raw}/lib/profiles/${profile}.sh" -o "${lib_dir}/profiles/${profile}.sh" 2>/dev/null || true
   done
 
   echo "$remote_version" > "${share_dir}/.version"

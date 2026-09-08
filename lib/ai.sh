@@ -94,6 +94,7 @@ System context:
   distro: ${RICER_DISTRO} (${RICER_DISTRO_PRETTY})
   distro_family: ${RICER_DISTRO_FAMILY} (e.g. ubuntu/debian, redhat, arch, gentoo, opensuse)
   is_barebones: ${RICER_IS_BAREBONES:-false}
+  pre_rice: ${RICER_PRE_RICE:-none} (e.g. omarchy, cachyos, garuda, omakub, caelestia, or none)
   wm: ${RICER_WM}
   session: ${RICER_SESSION}
   bootloader: ${RICER_BOOTLOADER} (grub_available: ${RICER_HAS_GRUB})

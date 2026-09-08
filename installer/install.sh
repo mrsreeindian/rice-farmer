@@ -34,8 +34,14 @@ curl -fsSL --max-time 30 "${REPO_RAW}/ricer" -o "${BIN_DIR}/ricer"
 chmod +x "${BIN_DIR}/ricer"
 
 info "Downloading library files..."
-for lib in utils detect ai rules install; do
+for lib in utils detect prerice ai rules install; do
   curl -fsSL --max-time 30 "${REPO_RAW}/lib/${lib}.sh" -o "${LIB_DIR}/${lib}.sh"
+done
+
+info "Downloading pre-rice profile configs..."
+mkdir -p "${LIB_DIR}/profiles"
+for profile in omarchy cachyos garuda omakub caelestia generic; do
+  curl -fsSL --max-time 30 "${REPO_RAW}/lib/profiles/${profile}.sh" -o "${LIB_DIR}/profiles/${profile}.sh"
 done
 
 # Download .version for the ricer script to read

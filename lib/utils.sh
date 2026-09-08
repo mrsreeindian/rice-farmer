@@ -61,6 +61,9 @@ print_system_table() {
   else
     _row "WM"      "${RICER_WM}"
   fi
+  if [ "${RICER_PRE_RICE:-none}" != "none" ]; then
+    _row "Pre-Rice" "${RICER_PRE_RICE}"
+  fi
   _row "Pkgs"    "${RICER_PKG_MANAGERS}"
   _row "CPU"     "${RICER_CPU}"
   _row "RAM"     "${RICER_RAM}"

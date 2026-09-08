@@ -130,8 +130,28 @@ detect_system() {
     RICER_BOOTLOADER="systemd-boot"
   fi
 
+  # ── Pre-Rice Environment ───────────────────────────────────────────────────
+  if [ -z "${RICER_PRE_RICE:-}" ]; then
+    if [ "$RICER_DISTRO" = "omarchy" ] || [ -d /usr/share/omarchy ] || [ -d "${HOME}/.config/omarchy" ] || command -v omarchy-version &>/dev/null; then
+      RICER_PRE_RICE="omarchy"
+    elif [ "$RICER_DISTRO" = "cachyos" ] || [ -f /etc/cachyos-release ] || [ -d /etc/cachyos ] || [ -d "${HOME}/.config/cachyos" ]; then
+      RICER_PRE_RICE="cachyos"
+    elif [ "$RICER_DISTRO" = "garuda" ] || [ -f /etc/garuda-release ] || [ -d /usr/share/garuda ] || [ -d "${HOME}/.config/garuda" ]; then
+      RICER_PRE_RICE="garuda"
+    elif [ -d "${HOME}/.local/share/omakub" ] || [ -d "${HOME}/.config/omakub" ] || command -v omakub &>/dev/null; then
+      RICER_PRE_RICE="omakub"
+    elif [ -d "${HOME}/.config/caelestia" ] || [ -d "${HOME}/.local/share/caelestia" ] || command -v caelestia &>/dev/null; then
+      RICER_PRE_RICE="caelestia"
+    elif [ -d "${HOME}/.config/hyprdots" ] || [ -d "${HOME}/.local/lib/hyprdots" ]; then
+      RICER_PRE_RICE="hyprdots"
+    else
+      RICER_PRE_RICE="none"
+    fi
+  fi
+
   export RICER_DISTRO RICER_DISTRO_LIKE RICER_DISTRO_FAMILY RICER_DISTRO_PRETTY \
          RICER_PKG_MANAGERS RICER_PM_CMD \
-         RICER_WM RICER_SESSION RICER_IS_BAREBONES RICER_CPU RICER_RAM RICER_GPU RICER_ARCH \
+         RICER_WM RICER_SESSION RICER_IS_BAREBONES RICER_PRE_RICE \
+         RICER_CPU RICER_RAM RICER_GPU RICER_ARCH \
          RICER_BOOTLOADER RICER_HAS_GRUB
 }

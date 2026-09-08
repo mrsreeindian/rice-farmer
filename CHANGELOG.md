@@ -1,13 +1,18 @@
 # Changelog
 
-## [Unreleased]
+## [1.1.0] — 2026-09-08
 ### Added
+- Pre-rice environment detection & profile configurations:
+  - Separate profiles for **Omarchy**, **CachyOS**, **Garuda Linux**, **Omakub**, and pre-rice environments (e.g. **Caelestia**, **Hyprdots**)
+  - Prominent ASCII conflict warning display highlighting colliding daemons, status bars, and desktop configs
+  - Automated conflict resolution: gracefully stops colliding background daemons (e.g. `mako` vs `dunst`, `ags` vs `waybar`, `latte-dock`)
+  - Config quarantine and isolation: backs up and isolates conflicting theme hooks, shell source lines, and autostarts before deploying the new rice
+  - Automated dependency resolution: auto-identifies and installs any missing packages required by the incoming rice on that base environment
 - Barebones Arch Linux and Gentoo support:
   - Automatic detection of minimal TTY environments without any DE/WM or display server installed (`RICER_IS_BAREBONES`)
   - Target WM/DE identification (Hyprland, Sway, i3, BSPWM, River, Awesome, Qtile, DWM, KDE Plasma, GNOME, XFCE)
   - Auto-installation of window managers, compositors, X11/Wayland backends, audio infrastructure (`pipewire`, `wireplumber`), desktop portals, status bars, terminals, and fonts
   - Distribution-specific package mappings with Arch Linux package names (`pacman`) and Gentoo category atoms (`emerge`, e.g. `gui-wm/hyprland`, `x11-wm/i3`)
-  - Both cloud AI engine and built-in offline rule engine support barebones auto-installation
   - Fallback support for root/chroot environments without `sudo`
 
 ## [1.0.0] — 2026-09-07

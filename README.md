@@ -2,12 +2,13 @@
 
 > Install any Linux rice/dotfiles from a GitHub URL — in one command.
 
-[![version](https://img.shields.io/badge/version-1.0.0-blue)](#)
+[![version](https://img.shields.io/badge/version-1.1.0-blue)](#)
 [![license](https://img.shields.io/badge/license-MIT-green)](#)
 [![shell](https://img.shields.io/badge/shell-bash-orange)](#)
 
 **Rice Farmer** is a lightweight (~30 KB), pure-Bash tool that:
 - Auto-detects your distro (Ubuntu/Debian, Red Hat/Fedora/CentOS, Arch, Gentoo, openSUSE), WM, package managers, hardware, and bootloader (GRUB)
+- **Pre-Rice & Desktop Conflict Management**: Separate profiles for **Omarchy**, **CachyOS**, **Garuda**, **Omakub**, and pre-rices (e.g. **Caelestia**, **Hyprdots**); warns of conflicts, automatically isolates/quarantines incompatible configs, stops colliding daemons, and installs missing dependencies
 - **Barebones Arch & Gentoo support**: Automatically detects minimal/TTY-only systems without a GUI and installs the required DE/WM stack, display servers/compositors, audio (`pipewire`), portals, waybar, terminals, and fonts
 - Uses a free cloud AI model (no API key required) to intelligently install any rice, dotfiles, or GRUB bootloader themes
 - Backs up your existing configs (including `/etc/default/grub`) before touching anything
