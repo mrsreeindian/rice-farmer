@@ -52,6 +52,8 @@ ${BOLD}USAGE${RESET}
   ricer restore                 Restore the latest config backup
   ricer update [--beta]         Check for updates and pull latest release (or latest tag)
   ricer uninstall               Remove Rice Farmer from the system
+  ricer version                 Print version and exit
+  ricer help                    Show this help
 
 ${BOLD}FLAGS${RESET}
   --dry-run        Show the install plan without executing
@@ -83,6 +85,8 @@ GITHUB_URL=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     detect|install|restore|update|uninstall) SUBCOMMAND="$1"; shift ;;
+    version|--version|-v) echo "Rice Farmer v${VERSION}"; exit 0 ;;
+    help|--help|-h)       usage; exit 0 ;;
     --dry-run)        RICER_DRY_RUN=true; shift ;;
     --local)          RICER_LOCAL=true; shift ;;
     --no-backup)      RICER_NO_BACKUP=true; shift ;;
@@ -92,8 +96,6 @@ while [[ $# -gt 0 ]]; do
     --model)
       [ $# -ge 2 ] || { log_error "--model requires an argument"; exit 1; }
       RICER_POLLIN_MODEL="$2"; shift 2 ;;
-    --version|-v)     echo "Rice Farmer v${VERSION}"; exit 0 ;;
-    --help|-h)        usage; exit 0 ;;
     http*|git*|/*|./*|../*)
       GITHUB_URL="$1"; shift
       [ -z "$SUBCOMMAND" ] && SUBCOMMAND="install"
@@ -464,6 +466,8 @@ case "$SUBCOMMAND" in
   restore)   cmd_restore ;;
   update)    cmd_update ;;
   uninstall) cmd_uninstall ;;
+  version)   echo "Rice Farmer v${VERSION}"; exit 0 ;;
+  help)      usage; exit 0 ;;
   "")        usage; exit 0 ;;
   *)         log_error "Unknown subcommand: $SUBCOMMAND"; usage; exit 1 ;;
 esac
