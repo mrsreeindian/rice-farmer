@@ -89,7 +89,9 @@ while [[ $# -gt 0 ]]; do
     --offline)        RICER_OFFLINE=true; shift ;;
     --clean-orphans|--remove-orphans|--prune-orphans) RICER_CLEAN_ORPHANS=true; shift ;;
     --beta)           RICER_UPDATE_BETA=true; shift ;;
-    --model)          RICER_POLLIN_MODEL="$2"; shift 2 ;;
+    --model)
+      [ $# -ge 2 ] || { log_error "--model requires an argument"; exit 1; }
+      RICER_POLLIN_MODEL="$2"; shift 2 ;;
     --version|-v)     echo "Rice Farmer v${VERSION}"; exit 0 ;;
     --help|-h)        usage; exit 0 ;;
     http*|git*|/*|./*|../*)
@@ -143,8 +145,9 @@ cmd_install() {
   # ── Clone repo ────────────────────────────────────────────────────────────
   local tmp_dir
   tmp_dir=$(mktemp -d /tmp/ricer-XXXXXXXXXX)
+  export RICER_SERVER_PID_FILE="${tmp_dir}/server.pid"
   # Always clean up temp dir and any spawned local AI server on exit
-  trap 'spinner_stop; [ -n "${RICER_SPAWNED_SERVER_PID:-}" ] && kill "${RICER_SPAWNED_SERVER_PID}" 2>/dev/null || true; [ -n "${tmp_dir:-}" ] && rm -rf "${tmp_dir}" && log_dim "Cleaned up ${tmp_dir}"' EXIT
+  trap 'spinner_stop; [ -f "${tmp_dir}/server.pid" ] && kill "$(cat "${tmp_dir}/server.pid")" 2>/dev/null || true; [ -n "${RICER_SPAWNED_SERVER_PID:-}" ] && kill "${RICER_SPAWNED_SERVER_PID}" 2>/dev/null || true; [ -n "${tmp_dir:-}" ] && rm -rf "${tmp_dir}" && log_dim "Cleaned up ${tmp_dir}"' EXIT
 
   log_info "Cloning ${GITHUB_URL}..."
   if ! GIT_TERMINAL_PROMPT=0 \
@@ -231,6 +234,8 @@ cmd_install() {
       clean_orphan_packages "true"
     fi
     log_info "Dry-run mode — no changes made."
+    [ -f "${tmp_dir}/server.pid" ] && kill "$(cat "${tmp_dir}/server.pid")" 2>/dev/null || true
+    [ -n "${RICER_SPAWNED_SERVER_PID:-}" ] && kill "${RICER_SPAWNED_SERVER_PID}" 2>/dev/null || true
     trap - EXIT   # disable cleanup trap (keep tmp for inspection)
     log_dim "Temp dir: $tmp_dir"
     exit 0
@@ -303,43 +308,39 @@ cmd_update() {
   # ── If running inside a git clone repository (developer mode) ───────────────
   if [ -d "${RICER_SELF}/.git" ]; then
     log_info "Git repository detected at ${RICER_SELF}."
-    (
-      cd "${RICER_SELF}"
-      git fetch origin --tags --quiet 2>/dev/null || git fetch origin --quiet
+    local current_target
+    current_target=$(git -C "${RICER_SELF}" describe --tags --exact-match 2>/dev/null || echo "$VERSION")
 
-      local current_target
-      current_target=$(git describe --tags --exact-match 2>/dev/null || echo "$VERSION")
+    local clean_remote clean_current
+    clean_remote=$(echo "$remote_tag" | sed -e 's/^v//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+    clean_current=$(echo "$current_target" | sed -e 's/^v//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 
-      local clean_remote clean_current
-      clean_remote=$(echo "$remote_tag" | sed -e 's/^v//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-      clean_current=$(echo "$current_target" | sed -e 's/^v//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-
-      if [ "$clean_current" != "dev" ]; then
-        if [ "$clean_remote" = "$clean_current" ]; then
-          log_ok "Already on the latest ${channel} (${remote_tag})."
-          exit 0
-        elif _ver_lte "$clean_remote" "$clean_current"; then
-          if [ "$channel" = "release" ]; then
-            log_ok "Current checkout (${current_target}) is up to date with latest release (${remote_tag})."
-          else
-            log_ok "Already on the latest tag (${current_target})."
-          fi
-          exit 0
+    if [ "$clean_current" != "dev" ]; then
+      if [ "$clean_remote" = "$clean_current" ]; then
+        log_ok "Already on the latest ${channel} (${remote_tag})."
+        return 0
+      elif _ver_lte "$clean_remote" "$clean_current"; then
+        if [ "$channel" = "release" ]; then
+          log_ok "Current checkout (${current_target}) is up to date with latest release (${remote_tag})."
+        else
+          log_ok "Already on the latest tag (${current_target})."
         fi
+        return 0
       fi
+    fi
 
-      log_info "Target ${channel}: ${remote_tag} (current: ${current_target})"
-      confirm "Update git checkout to ${remote_tag}?" "y" || { log_info "Update cancelled."; exit 0; }
+    log_info "Target ${channel}: ${remote_tag} (current: ${current_target})"
+    confirm "Update git checkout to ${remote_tag}?" "y" || { log_info "Update cancelled."; return 0; }
 
-      if git checkout "$remote_tag" --quiet; then
-        local new_ver
-        new_ver=$(cat "${RICER_SELF}/.version" 2>/dev/null || echo "$remote_tag")
-        log_ok "Updated successfully to v${new_ver} (${channel})!"
-      else
-        die "Failed to checkout tag ${remote_tag}."
-      fi
-    )
-    return 0
+    git -C "${RICER_SELF}" fetch origin --tags --quiet 2>/dev/null || git -C "${RICER_SELF}" fetch origin --quiet
+    if git -C "${RICER_SELF}" checkout "$remote_tag" --quiet; then
+      local new_ver
+      new_ver=$(cat "${RICER_SELF}/.version" 2>/dev/null || echo "$remote_tag")
+      log_ok "Updated successfully to v${new_ver} (${channel})!"
+      return 0
+    else
+      die "Failed to checkout tag ${remote_tag}."
+    fi
   fi
 
   # ── Installed mode (via curl installer) ────────────────────────────────────
@@ -370,25 +371,47 @@ cmd_update() {
 
   local repo_raw="https://raw.githubusercontent.com/mrsreeindian/rice-farmer/${remote_tag}"
 
-  # Download main script atomically so bash file-offset is not disturbed while running
-  local tmp_bin
-  tmp_bin=$(mktemp "${bin_dir}/ricer.tmp.XXXXXX")
-  if ! curl -fsSL --max-time 30 "${repo_raw}/ricer" -o "$tmp_bin"; then
-    rm -f "$tmp_bin"
+  local tmp_update_dir
+  tmp_update_dir=$(mktemp -d /tmp/ricer-update-XXXXXX)
+  # shellcheck disable=SC2064
+  trap "rm -rf '$tmp_update_dir'" RETURN
+
+  # Download main script
+  if ! curl -fsSL --max-time 30 "${repo_raw}/ricer" -o "${tmp_update_dir}/ricer"; then
     die "Failed to download ricer script from ${remote_tag}."
   fi
-  chmod +x "$tmp_bin"
-  mv -f "$tmp_bin" "${bin_dir}/ricer"
+  chmod +x "${tmp_update_dir}/ricer"
 
   # Download libraries
+  mkdir -p "${tmp_update_dir}/lib/profiles"
   for lib in utils detect prerice ai rules install; do
-    curl -fsSL --max-time 30 "${repo_raw}/lib/${lib}.sh" -o "${lib_dir}/${lib}.sh" 2>/dev/null || true
+    if ! curl -fsSL --max-time 30 "${repo_raw}/lib/${lib}.sh" -o "${tmp_update_dir}/lib/${lib}.sh"; then
+      die "Failed to download library lib/${lib}.sh from ${remote_tag}."
+    fi
   done
 
   # Download pre-rice profiles
-  mkdir -p "${lib_dir}/profiles"
   for profile in omarchy cachyos garuda omakub caelestia generic; do
-    curl -fsSL --max-time 30 "${repo_raw}/lib/profiles/${profile}.sh" -o "${lib_dir}/profiles/${profile}.sh" 2>/dev/null || true
+    curl -fsSL --max-time 30 "${repo_raw}/lib/profiles/${profile}.sh" -o "${tmp_update_dir}/lib/profiles/${profile}.sh" 2>/dev/null || true
+  done
+
+  # Verify syntax of all downloaded scripts before applying
+  if ! bash -n "${tmp_update_dir}/ricer"; then
+    die "Downloaded ricer failed syntax verification. Aborting update."
+  fi
+  for f in "${tmp_update_dir}/lib"/*.sh; do
+    if ! bash -n "$f" 2>/dev/null; then
+      die "Downloaded library $f failed syntax verification. Aborting update."
+    fi
+  done
+
+  # Atomically install verified files
+  mv -f "${tmp_update_dir}/ricer" "${bin_dir}/ricer"
+  for lib in utils detect prerice ai rules install; do
+    mv -f "${tmp_update_dir}/lib/${lib}.sh" "${lib_dir}/${lib}.sh"
+  done
+  for profile in omarchy cachyos garuda omakub caelestia generic; do
+    [ -f "${tmp_update_dir}/lib/profiles/${profile}.sh" ] && mv -f "${tmp_update_dir}/lib/profiles/${profile}.sh" "${lib_dir}/profiles/${profile}.sh"
   done
 
   echo "$remote_version" > "${share_dir}/.version"

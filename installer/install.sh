@@ -44,25 +44,25 @@ for profile in omarchy cachyos garuda omakub caelestia generic; do
   curl -fsSL --max-time 30 "${REPO_RAW}/lib/profiles/${profile}.sh" -o "${LIB_DIR}/profiles/${profile}.sh"
 done
 
-# Download .version for the ricer script to read
-curl -fsSL --max-time 10 "${REPO_RAW}/.version" \
-  -o "${HOME}/.local/share/ricer/.version" 2>/dev/null \
-  || (mkdir -p "${HOME}/.local/share/ricer" \
-      && echo "$VERSION" > "${HOME}/.local/share/ricer/.version") || true
+# Save .version for the ricer script to read
+mkdir -p "${HOME}/.local/share/ricer"
+echo "$VERSION" > "${HOME}/.local/share/ricer/.version"
 
 # ── PATH setup ────────────────────────────────────────────────────────────────
-SHELL_NAME=$(basename "${SHELL:-bash}")
 added_path=false
-for rc in "${HOME}/.bashrc" "${HOME}/.zshrc" "${HOME}/.profile"; do
-  if [ -f "$rc" ]; then
-    if ! grep -q "$BIN_DIR" "$rc" 2>/dev/null; then
-      echo "" >> "$rc"
-      echo "# Rice Farmer" >> "$rc"
-      echo "export PATH=\"${BIN_DIR}:\$PATH\"" >> "$rc"
-      added_path=true
+if ! echo "$PATH" | tr ':' '\n' | grep -qx "${BIN_DIR}"; then
+  for rc in "${HOME}/.bashrc" "${HOME}/.zshrc" "${HOME}/.profile"; do
+    if [ -f "$rc" ]; then
+      if ! grep -Eq '(\$HOME|'"${HOME}"'|~)/\.local/bin' "$rc" 2>/dev/null; then
+        echo "" >> "$rc"
+        echo "# Rice Farmer" >> "$rc"
+        echo "export PATH=\"${BIN_DIR}:\$PATH\"" >> "$rc"
+        added_path=true
+        break
+      fi
     fi
-  fi
-done
+  done
+fi
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo ""

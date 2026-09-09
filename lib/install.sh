@@ -3,6 +3,15 @@
 
 RICER_BACKUP_DIR=""
 
+# ── Privilege helper ─────────────────────────────────────────────────────────
+_priv() {
+  if [ "$EUID" -eq 0 ] || ! command -v sudo &>/dev/null; then
+    "$@"
+  else
+    sudo "$@"
+  fi
+}
+
 # ── Init backup dir (called once before execute_steps) ────────────────────────
 init_backup() {
   RICER_BACKUP_DIR="${HOME}/.config-backup-$(date +%Y%m%d-%H%M%S)"
@@ -46,7 +55,7 @@ execute_steps() {
     local type desc
     type=$(echo "$steps_json" | jq -r ".[$i].type")
     desc=$(echo "$steps_json" | jq -r ".[$i].description")
-    readarray -t args < <(echo "$steps_json" | jq -r ".[$i].args[]")
+    readarray -t args < <(echo "$steps_json" | jq -r ".[$i].args[]? // empty")
 
     log_step "[$((i+1))/$n] $desc"
 
@@ -55,18 +64,18 @@ execute_steps() {
       continue
     fi
 
+    local rc=0
     case "$type" in
-      install_pkg)      _pkg_install "${args[@]}" ;;
-      stow)             _do_stow "$repo_dir" "${args[@]}" ;;
-      copy)             _backup_copy "$repo_dir" "${args[@]}" ;;
-      symlink)          _backup_link "$repo_dir" "${args[@]}" ;;
-      grub_theme)       _install_grub_theme "$repo_dir" "${args[@]}" ;;
-      resolve_conflict) _resolve_conflict "${args[@]}" ;;
-      run_cmd)          _run_in_repo "$repo_dir" "${args[@]}" ;;
+      install_pkg)      _pkg_install "${args[@]}" || rc=$? ;;
+      stow)             _do_stow "$repo_dir" "${args[@]}" || rc=$? ;;
+      copy)             _backup_copy "$repo_dir" "${args[@]}" || rc=$? ;;
+      symlink)          _backup_link "$repo_dir" "${args[@]}" || rc=$? ;;
+      grub_theme)       _install_grub_theme "$repo_dir" "${args[@]}" || rc=$? ;;
+      resolve_conflict) _resolve_conflict "${args[@]}" || rc=$? ;;
+      run_cmd)          _run_in_repo "$repo_dir" "${args[@]}" || rc=$? ;;
       *)                log_warn "Unknown step type '${type}' — skipping." ;;
     esac
 
-    local rc=$?
     if [ $rc -ne 0 ]; then
       log_warn "Step $((i+1)) exited with code $rc — continuing..."
     fi
@@ -81,19 +90,15 @@ execute_steps() {
 _pkg_install() {
   [ $# -eq 0 ] && return 0
   log_dim "Installing packages: $*"
-  local sudo_cmd="sudo"
-  if [ "$EUID" -eq 0 ] || ! command -v sudo &>/dev/null; then
-    sudo_cmd=""
-  fi
   case "$RICER_PM_CMD" in
-    pacman)       $sudo_cmd pacman -S --noconfirm --needed "$@" ;;
-    apt|apt-get)  $sudo_cmd apt-get update -qq && $sudo_cmd apt-get install -y "$@" ;;
-    dnf)          $sudo_cmd dnf install -y "$@" ;;
-    yum)          $sudo_cmd yum install -y "$@" ;;
-    zypper)       $sudo_cmd zypper --non-interactive install "$@" ;;
-    emerge)       $sudo_cmd emerge --ask=n --verbose --noreplace "$@" ;;
-    apk)          $sudo_cmd apk add "$@" ;;
-    xbps-install) $sudo_cmd xbps-install -y "$@" ;;
+    pacman)       _priv pacman -S --noconfirm --needed "$@" ;;
+    apt|apt-get)  _priv apt-get install -y "$@" ;;
+    dnf)          _priv dnf install -y "$@" ;;
+    yum)          _priv yum install -y "$@" ;;
+    zypper)       _priv zypper --non-interactive install "$@" ;;
+    emerge)       _priv emerge --ask=n --verbose --noreplace "$@" ;;
+    apk)          _priv apk add "$@" ;;
+    xbps-install) _priv xbps-install -y "$@" ;;
     brew)         brew install "$@" ;;
     *)
       log_warn "Unknown package manager '${RICER_PM_CMD}' — skipping package install."
@@ -107,11 +112,6 @@ clean_orphan_packages() {
   local dry_run="${1:-false}"
   log_info "Checking for orphan / unused packages..."
 
-  local sudo_cmd="sudo"
-  if [ "$EUID" -eq 0 ] || ! command -v sudo &>/dev/null; then
-    sudo_cmd=""
-  fi
-
   if [ "$dry_run" = "true" ]; then
     log_dim "DRY-RUN: remove orphan packages for package manager (${RICER_PM_CMD:-none})"
     return 0
@@ -124,7 +124,7 @@ clean_orphan_packages() {
       if [ -n "$orphans" ]; then
         log_info "Removing orphan packages (pacman): $orphans"
         # shellcheck disable=SC2086
-        $sudo_cmd pacman -Rns --noconfirm $orphans
+        _priv pacman -Rns --noconfirm $orphans
         log_ok "Orphan packages removed successfully."
       else
         log_ok "No orphan packages found."
@@ -132,37 +132,37 @@ clean_orphan_packages() {
       ;;
     apt|apt-get)
       log_info "Removing unused packages (apt autoremove)..."
-      $sudo_cmd apt-get autoremove -y
+      _priv apt-get autoremove -y
       log_ok "Unused packages cleaned up."
       ;;
     dnf)
       log_info "Removing unused packages (dnf autoremove)..."
-      $sudo_cmd dnf autoremove -y
+      _priv dnf autoremove -y
       log_ok "Unused packages cleaned up."
       ;;
     yum)
       log_info "Removing unused packages (yum autoremove)..."
-      $sudo_cmd yum autoremove -y
+      _priv yum autoremove -y
       log_ok "Unused packages cleaned up."
       ;;
     zypper)
       log_info "Removing orphaned packages (zypper rm -u)..."
-      $sudo_cmd zypper --non-interactive rm -u 2>/dev/null || true
+      _priv zypper --non-interactive rm -u 2>/dev/null || true
       log_ok "Orphan packages cleaned up."
       ;;
     emerge)
       log_info "Cleaning unneeded dependencies (emerge --depclean)..."
-      $sudo_cmd emerge --ask=n --depclean
+      _priv emerge --ask=n --depclean
       log_ok "Gentoo dependencies cleaned up."
       ;;
     xbps-install)
       log_info "Removing orphan packages (xbps-remove -o)..."
-      $sudo_cmd xbps-remove -o -y 2>/dev/null || true
+      _priv xbps-remove -o -y 2>/dev/null || true
       log_ok "Void orphan packages removed."
       ;;
     apk)
       log_info "Cleaning packages (apk cache)..."
-      $sudo_cmd apk cache clean 2>/dev/null || true
+      _priv apk cache clean 2>/dev/null || true
       log_ok "Apk cache cleaned."
       ;;
     brew)
@@ -192,18 +192,22 @@ _resolve_conflict() {
       target="${target/#\~/$HOME}"
       if [ -e "$target" ]; then
         log_dim "Quarantining conflicting file: $target"
-        local qdir="${RICER_BACKUP_DIR}/quarantine"
-        mkdir -p "$qdir"
-        cp -a "$target" "$qdir/" 2>/dev/null || true
+        if [ "${RICER_NO_BACKUP:-false}" = "false" ] && [ -n "${RICER_BACKUP_DIR:-}" ]; then
+          local rel_target="${target#$HOME/}"
+          local qdir="${RICER_BACKUP_DIR}/quarantine/$(dirname "$rel_target")"
+          mkdir -p "$qdir"
+          cp -a "$target" "$qdir/" 2>/dev/null || true
+        fi
         mv "$target" "${target}.ricer-quarantined" 2>/dev/null || true
       fi
       ;;
     backup_quarantine)
       local target="$1"
       target="${target/#\~/$HOME}"
-      if [ -e "$target" ]; then
+      if [ -e "$target" ] && [ "${RICER_NO_BACKUP:-false}" = "false" ] && [ -n "${RICER_BACKUP_DIR:-}" ]; then
         log_dim "Backing up pre-rice configuration: $target"
-        local qdir="${RICER_BACKUP_DIR}/quarantine"
+        local rel_target="${target#$HOME/}"
+        local qdir="${RICER_BACKUP_DIR}/quarantine/$(dirname "$rel_target")"
         mkdir -p "$qdir"
         cp -a "$target" "$qdir/" 2>/dev/null || true
       fi
@@ -237,48 +241,73 @@ _do_stow() {
 # ── Copy with backup ──────────────────────────────────────────────────────────
 _backup_copy() {
   local repo_dir="$1" src="$2" dst="$3"
-  dst="${dst/\~/$HOME}"
   dst="${dst/#\~/$HOME}"
-  src_full="${repo_dir}/${src}"
+  local src_full="${repo_dir}/${src}"
 
-  if [ -e "$dst" ] && [ "${RICER_NO_BACKUP:-false}" = "false" ]; then
-    mkdir -p "$RICER_BACKUP_DIR"
-    cp -r "$dst" "$RICER_BACKUP_DIR/" 2>/dev/null || true
-    log_dim "Backed up: $dst -> $RICER_BACKUP_DIR"
-  fi
-
-  # If src is "." copy all top-level dotfiles to home
+  # If src is "." copy all top-level dotfiles to home safely
   if [ "$src" = "." ]; then
     find "$repo_dir" -maxdepth 1 -name '.*' \
       ! -name '.git' ! -name '.gitignore' -print0 \
     | while IFS= read -r -d '' f; do
+        local bname
+        bname=$(basename "$f")
+        if [ -e "$HOME/$bname" ] && [ "${RICER_NO_BACKUP:-false}" = "false" ] && [ -n "${RICER_BACKUP_DIR:-}" ]; then
+          mkdir -p "$RICER_BACKUP_DIR"
+          cp -r "$HOME/$bname" "$RICER_BACKUP_DIR/$bname" 2>/dev/null || true
+          log_dim "Backed up: $HOME/$bname -> $RICER_BACKUP_DIR/$bname"
+        fi
         cp -r "$f" "$HOME/"
       done
-  else
-    mkdir -p "$(dirname "$dst")"
-    if [ -d "$src_full" ]; then
-      # If target directory already exists, ensure clean update
-      rm -rf "$dst" 2>/dev/null || true
-      cp -r "$src_full" "$dst"
+    return 0
+  fi
+
+  # Backup existing destination if needed, preserving path hierarchy
+  if [ -e "$dst" ] && [ "${RICER_NO_BACKUP:-false}" = "false" ] && [ -n "${RICER_BACKUP_DIR:-}" ]; then
+    local rel_dst="${dst#$HOME/}"
+    if [ "$rel_dst" != "$dst" ]; then
+      mkdir -p "$RICER_BACKUP_DIR/$(dirname "$rel_dst")"
+      cp -r "$dst" "$RICER_BACKUP_DIR/$rel_dst" 2>/dev/null || true
+      log_dim "Backed up: $dst -> $RICER_BACKUP_DIR/$rel_dst"
     else
-      cp -r "$src_full" "$dst"
+      mkdir -p "$RICER_BACKUP_DIR"
+      cp -r "$dst" "$RICER_BACKUP_DIR/" 2>/dev/null || true
+      log_dim "Backed up: $dst -> $RICER_BACKUP_DIR"
     fi
+  fi
+
+  mkdir -p "$(dirname "$dst")"
+  if [ "$dst" = "$HOME/.config" ] || [ "$dst" = "$HOME" ]; then
+    # Never rm -rf ~/.config or $HOME
+    cp -r "$src_full"/. "$dst/"
+  elif [ -d "$src_full" ]; then
+    # If target directory already exists, ensure clean update
+    rm -rf "$dst" 2>/dev/null || true
+    cp -r "$src_full" "$dst"
+  else
+    cp -r "$src_full" "$dst"
   fi
 }
 
 # ── Symlink with backup ───────────────────────────────────────────────────────
 _backup_link() {
   local repo_dir="$1" src="$2" dst="$3"
-  dst="${dst/\~/$HOME}"
   dst="${dst/#\~/$HOME}"
-  src_full="${repo_dir}/${src}"
+  local src_full="${repo_dir}/${src}"
   [ ! -e "$src_full" ] && src_full="$src"   # allow absolute src
 
-  if [ -e "$dst" ] && [ ! -L "$dst" ] && [ "${RICER_NO_BACKUP:-false}" = "false" ]; then
-    mkdir -p "$RICER_BACKUP_DIR"
-    mv "$dst" "$RICER_BACKUP_DIR/"
-    log_dim "Backed up: $dst -> $RICER_BACKUP_DIR"
-  elif [ -L "$dst" ] || [ -e "$dst" ]; then
+  if [ -e "$dst" ] || [ -L "$dst" ]; then
+    if [ "${RICER_NO_BACKUP:-false}" = "false" ] && [ -n "${RICER_BACKUP_DIR:-}" ]; then
+      local rel_dst="${dst#$HOME/}"
+      if [ "$rel_dst" != "$dst" ]; then
+        mkdir -p "$RICER_BACKUP_DIR/$(dirname "$rel_dst")"
+        cp -rP "$dst" "$RICER_BACKUP_DIR/$rel_dst" 2>/dev/null || true
+        log_dim "Backed up: $dst -> $RICER_BACKUP_DIR/$rel_dst"
+      else
+        mkdir -p "$RICER_BACKUP_DIR"
+        cp -rP "$dst" "$RICER_BACKUP_DIR/" 2>/dev/null || true
+        log_dim "Backed up: $dst -> $RICER_BACKUP_DIR"
+      fi
+    fi
     rm -rf "$dst"   # remove existing link or file/directory
   fi
 
@@ -298,6 +327,11 @@ _run_in_repo() {
 _install_grub_theme() {
   local repo_dir="$1" src="${2:-}" theme_name="${3:-}"
   local src_full="${repo_dir}/${src}"
+
+  if [ "${RICER_HAS_GRUB:-false}" != "true" ]; then
+    log_warn "GRUB bootloader not detected on this system — skipping GRUB theme installation."
+    return 0
+  fi
 
   if [ -z "$src" ]; then
     src_full="$repo_dir"
@@ -319,47 +353,47 @@ _install_grub_theme() {
   local target_dir="${themes_dir}/${theme_name}"
 
   # Back up /etc/default/grub if present
-  if [ -f "/etc/default/grub" ] && [ "${RICER_NO_BACKUP:-false}" = "false" ]; then
+  if [ -f "/etc/default/grub" ] && [ "${RICER_NO_BACKUP:-false}" = "false" ] && [ -n "${RICER_BACKUP_DIR:-}" ]; then
     mkdir -p "$RICER_BACKUP_DIR"
     cp "/etc/default/grub" "$RICER_BACKUP_DIR/grub.default.bak" 2>/dev/null || true
     log_dim "Backed up /etc/default/grub -> $RICER_BACKUP_DIR"
   fi
 
   log_dim "Installing theme files to ${target_dir}..."
-  sudo mkdir -p "$themes_dir"
-  sudo rm -rf "$target_dir"
-  sudo cp -r "$src_full" "$target_dir"
+  _priv mkdir -p "$themes_dir"
+  _priv rm -rf "$target_dir"
+  _priv cp -r "$src_full" "$target_dir"
 
   # Find theme.txt
   local theme_txt
   if [ -f "${target_dir}/theme.txt" ]; then
     theme_txt="${target_dir}/theme.txt"
   else
-    theme_txt=$(sudo find "$target_dir" -maxdepth 2 -name "theme.txt" 2>/dev/null | head -1)
+    theme_txt=$(_priv find "$target_dir" -maxdepth 2 -name "theme.txt" 2>/dev/null | head -1)
   fi
 
   if [ -n "$theme_txt" ] && [ -f "/etc/default/grub" ]; then
     log_dim "Updating GRUB_THEME in /etc/default/grub..."
-    if grep -q "^GRUB_THEME=" /etc/default/grub 2>/dev/null; then
-      sudo sed -i "s|^GRUB_THEME=.*|GRUB_THEME=\"${theme_txt}\"|" /etc/default/grub
-    elif grep -q "^#GRUB_THEME=" /etc/default/grub 2>/dev/null; then
-      sudo sed -i "s|^#GRUB_THEME=.*|GRUB_THEME=\"${theme_txt}\"|" /etc/default/grub
+    if grep -q "^[[:space:]]*GRUB_THEME=" /etc/default/grub 2>/dev/null; then
+      _priv sed -i "s|^[[:space:]]*GRUB_THEME=.*|GRUB_THEME=\"${theme_txt}\"|" /etc/default/grub
+    elif grep -q "^[[:space:]]*#[[:space:]]*GRUB_THEME=" /etc/default/grub 2>/dev/null; then
+      _priv sed -i "s|^[[:space:]]*#[[:space:]]*GRUB_THEME=.*|GRUB_THEME=\"${theme_txt}\"|" /etc/default/grub
     else
-      echo "GRUB_THEME=\"${theme_txt}\"" | sudo tee -a /etc/default/grub >/dev/null
+      echo "GRUB_THEME=\"${theme_txt}\"" | _priv tee -a /etc/default/grub >/dev/null
     fi
 
     # Update GRUB configuration
     log_dim "Regenerating GRUB config..."
     if command -v update-grub &>/dev/null; then
-      sudo update-grub
+      _priv update-grub
     elif command -v grub-mkconfig &>/dev/null; then
       local grub_cfg="/boot/grub/grub.cfg"
       [ -f "/boot/grub2/grub.cfg" ] && grub_cfg="/boot/grub2/grub.cfg"
-      sudo grub-mkconfig -o "$grub_cfg"
+      _priv grub-mkconfig -o "$grub_cfg"
     elif command -v grub2-mkconfig &>/dev/null; then
       local grub_cfg="/boot/grub2/grub.cfg"
       [ -f "/boot/grub/grub.cfg" ] && grub_cfg="/boot/grub/grub.cfg"
-      sudo grub2-mkconfig -o "$grub_cfg"
+      _priv grub2-mkconfig -o "$grub_cfg"
     else
       log_warn "GRUB config generator not found. Run grub-mkconfig manually."
     fi
@@ -378,18 +412,34 @@ restore_latest_backup() {
     die "No backups found in $HOME."
   fi
   log_info "Restoring from: $latest"
-  cp -r "$latest"/. "$HOME/"
+
+  # Restore files preserving directory hierarchy
+  find "$latest" -mindepth 1 -maxdepth 1 ! -name "quarantine" ! -name "grub.default.bak" -print0 \
+  | while IFS= read -r -d '' item; do
+      cp -rP "$item" "$HOME/"
+    done
+
+  # Restore quarantined items if present
+  if [ -d "$latest/quarantine" ]; then
+    log_info "Restoring quarantined files..."
+    cp -rP "$latest/quarantine"/. "$HOME/" 2>/dev/null || true
+    find "$HOME" -name "*.ricer-quarantined" -exec rm -f {} + 2>/dev/null || true
+  fi
 
   # Restore GRUB config if backed up
   if [ -f "$latest/grub.default.bak" ]; then
     log_info "Restoring /etc/default/grub..."
-    sudo cp "$latest/grub.default.bak" /etc/default/grub
+    _priv cp "$latest/grub.default.bak" /etc/default/grub
     if command -v update-grub &>/dev/null; then
-      sudo update-grub
+      _priv update-grub
     elif command -v grub-mkconfig &>/dev/null; then
       local grub_cfg="/boot/grub/grub.cfg"
       [ -f "/boot/grub2/grub.cfg" ] && grub_cfg="/boot/grub2/grub.cfg"
-      sudo grub-mkconfig -o "$grub_cfg"
+      _priv grub-mkconfig -o "$grub_cfg"
+    elif command -v grub2-mkconfig &>/dev/null; then
+      local grub_cfg="/boot/grub2/grub.cfg"
+      [ -f "/boot/grub/grub.cfg" ] && grub_cfg="/boot/grub/grub.cfg"
+      _priv grub2-mkconfig -o "$grub_cfg"
     fi
     log_ok "GRUB configuration restored."
   fi

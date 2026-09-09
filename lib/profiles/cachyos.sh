@@ -2,9 +2,6 @@
 # lib/profiles/cachyos.sh — CachyOS pre-rice configuration profile
 
 profile_cachyos_detect() {
-  if [ -n "${RICER_DISTRO:-}" ] && [ "$RICER_DISTRO" != "cachyos" ]; then
-    return 1
-  fi
   [ "${RICER_DISTRO:-}" = "cachyos" ] \
     || [ -f /etc/cachyos-release ] \
     || [ -d /etc/cachyos ] \

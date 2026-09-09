@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.2.1] — 2026-09-09
+### Fixed & Improved
+- **Security & Safety Audit Fixes**:
+  - Prevented infinite recursive home directory backup on root dotfile installations.
+  - Guarded `~/.config` against deletion during generic config installs.
+  - Fixed `ricer restore` directory hierarchy to restore configs to `~/.config/<app>` and unquarantine files cleanly.
+  - Replaced world-writable `/tmp` temporary files with secure `mktemp` in Pollinations AI integration.
+  - Switched Pollinations AI requests to HTTP POST with JSON body, preventing HTTP 414 URI Too Long errors.
+  - Wired `--model` flag into AI requests.
+  - Fixed subshell PID state loss to ensure background AI servers (Ollama / llama-server) are properly terminated on exit.
+  - Replaced GNU Awk-specific `match()` with pure Bash regex for portability on Debian/Ubuntu (`mawk`).
+  - Fixed pre-rice profile detection for Omarchy, CachyOS, and Garuda when running on Arch Linux.
+  - Introduced `_priv()` privilege abstraction to support root/chroot/container environments without requiring `sudo`.
+  - Added GRUB bootloader presence checks to skip theme operations on EFI/systemd-boot systems.
+  - Fixed GNU Stow invocation to pass package directories instead of `.`.
+  - Added app directory alias mappings (e.g. `hyprland` -> `~/.config/hypr`).
+  - Added Plasma 6 session detection and ARM CPU detection.
+  - Fixed `cmd_update` download verification and prevented duplicate PATH exports in installer.
+
 ## [1.2.0] — 2026-09-09
 ### Added
 - Local-First AI Architecture & Model Management:

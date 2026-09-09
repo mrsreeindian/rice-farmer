@@ -283,10 +283,24 @@ rules_detect_plan() {
     fi
     if [ "$stow_indicator" -eq 1 ]; then
       log_dim "Rule: GNU Stow layout"
-      plan=$(jq -cn '[
-        {"type":"install_pkg","args":["stow"],"description":"Install GNU Stow"},
-        {"type":"stow","args":["."],"description":"Stow all packages to home directory"}
-      ]')
+      local stow_pkgs=()
+      while IFS= read -r -d '' pdir; do
+        stow_pkgs+=("$(basename "$pdir")")
+      done < <(find "$repo_dir" -mindepth 1 -maxdepth 1 -type d ! -name '.git' -print0 2>/dev/null)
+
+      if [ ${#stow_pkgs[@]} -gt 0 ]; then
+        local stow_json
+        stow_json=$(printf '%s\n' "${stow_pkgs[@]}" | jq -R . | jq -s .)
+        plan=$(jq -cn --argjson pkgs "$stow_json" '[
+          {"type":"install_pkg","args":["stow"],"description":"Install GNU Stow"},
+          {"type":"stow","args":$pkgs,"description":"Stow all packages to home directory"}
+        ]')
+      else
+        plan=$(jq -cn '[
+          {"type":"install_pkg","args":["stow"],"description":"Install GNU Stow"},
+          {"type":"stow","args":["."],"description":"Stow all packages to home directory"}
+        ]')
+      fi
     fi
   fi
 
@@ -298,26 +312,32 @@ rules_detect_plan() {
       log_dim "Rule: bare git repo"
       plan=$(jq -cn --arg r "$repo_dir" '[
         {"type":"run_cmd",
-         "args":["git --git-dir=\"$REPO_DIR/.git\" --work-tree=\"$HOME\" checkout -f"],
+         "args":["git --git-dir=\"" + $r + "/.git\" --work-tree=\"$HOME\" checkout -f"],
          "description":"Check out bare git repo into home directory"}
-      ]' | sed "s|\\\$REPO_DIR|$repo_dir|g")
+      ]')
     fi
   fi
 
   # ── Pattern 5: .config directory present ─────────────────────────────────────
   if [ -z "$plan" ] && [ -d "$repo_dir/.config" ]; then
     log_dim "Rule: .config directory detected"
-    local config_steps=()
+    local config_items=()
     while IFS= read -r -d '' cdir; do
       local bname
       bname=$(basename "$cdir")
-      config_steps+=("{\"type\":\"copy\",\"args\":[\".config/$bname\",\"~/.config/$bname\"],\"description\":\"Install $bname config\"}")
+      config_items+=("$bname")
     done < <(find "$repo_dir/.config" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
 
-    if [ ${#config_steps[@]} -gt 0 ]; then
-      local json_steps
-      json_steps=$(IFS=,; echo "[${config_steps[*]}]")
-      plan="$json_steps"
+    if [ ${#config_items[@]} -gt 0 ]; then
+      local items_json
+      items_json=$(printf '%s\n' "${config_items[@]}" | jq -R . | jq -s .)
+      plan=$(jq -cn --argjson items "$items_json" '
+        $items | map({
+          "type": "copy",
+          "args": [(".config/" + .), ("~/.config/" + .)],
+          "description": ("Install " + . + " config")
+        })
+      ')
     else
       plan=$(jq -cn '[{"type":"copy","args":[".config","~/.config"],"description":"Copy .config into home"}]')
     fi
@@ -342,39 +362,54 @@ rules_detect_plan() {
   if [ -z "$plan" ]; then
     local common_apps=(hypr hyprland sway i3 waybar rofi wofi kitty alacritty foot wezterm \
                        nvim neovim fish zsh tmux dunst mako polybar fastfetch btop cava)
-    local found_app_steps=()
+    local found_app_pairs=()
     for app in "${common_apps[@]}"; do
       if [ -d "$repo_dir/$app" ]; then
-        found_app_steps+=("{\"type\":\"copy\",\"args\":[\"$app\",\"~/.config/$app\"],\"description\":\"Install $app config to ~/.config/$app\"}")
+        local target_app="$app"
+        [ "$app" = "hyprland" ] && target_app="hypr"
+        [ "$app" = "neovim" ] && target_app="nvim"
+        found_app_pairs+=("${app}|${target_app}")
       fi
     done
-    if [ ${#found_app_steps[@]} -gt 0 ]; then
+    if [ ${#found_app_pairs[@]} -gt 0 ]; then
       log_dim "Rule: recognized app config directories at root"
-      local json_app_steps
-      json_app_steps=$(IFS=,; echo "[${found_app_steps[*]}]")
-      plan="$json_app_steps"
+      local pairs_json
+      pairs_json=$(printf '%s\n' "${found_app_pairs[@]}" | jq -R 'split("|") | {src: .[0], dst: .[1]}' | jq -s .)
+      plan=$(jq -cn --argjson apps "$pairs_json" '
+        $apps | map({
+          "type": "copy",
+          "args": [.src, ("~/.config/" + .dst)],
+          "description": ("Install " + .src + " config to ~/.config/" + .dst)
+        })
+      ')
     fi
   fi
 
   # ── Pattern 8: any subdirectories (generic config copy) ──────────────────────
   if [ -z "$plan" ]; then
-    local generic_steps=()
+    local generic_dirs=()
     while IFS= read -r -d '' gdir; do
       local gname
       gname=$(basename "$gdir")
       case "$gname" in
-        .git|.github|tests|docs|pictures|wallpapers|assets) ;;
+        .git|.github|tests|docs|pictures|wallpapers|assets|media|screenshots|fonts|scripts|bin|node_modules|dist|build) ;;
         *)
-          generic_steps+=("{\"type\":\"copy\",\"args\":[\"$gname\",\"~/.config/$gname\"],\"description\":\"Install $gname to ~/.config/$gname\"}")
+          generic_dirs+=("$gname")
           ;;
       esac
     done < <(find "$repo_dir" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
 
-    if [ ${#generic_steps[@]} -gt 0 ]; then
+    if [ ${#generic_dirs[@]} -gt 0 ]; then
       log_dim "Rule: installing root config folders to ~/.config"
-      local json_generic_steps
-      json_generic_steps=$(IFS=,; echo "[${generic_steps[*]}]")
-      plan="$json_generic_steps"
+      local gen_json
+      gen_json=$(printf '%s\n' "${generic_dirs[@]}" | jq -R . | jq -s .)
+      plan=$(jq -cn --argjson dirs "$gen_json" '
+        $dirs | map({
+          "type": "copy",
+          "args": [., ("~/.config/" + .)],
+          "description": ("Install " + . + " to ~/.config/" + .)
+        })
+      ')
     fi
   fi
 

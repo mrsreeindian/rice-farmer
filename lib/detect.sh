@@ -87,9 +87,11 @@ detect_system() {
     if [ -z "$RICER_WM" ] || [ "$RICER_WM" = "tty" ] || [ "$RICER_SESSION" = "tty" ]; then
       # Check if any common display server or compositor binaries exist
       if ! command -v Xorg &>/dev/null && ! command -v X &>/dev/null && \
-         ! command -v hyprland &>/dev/null && ! command -v sway &>/dev/null && \
-         ! command -v wayfire &>/dev/null && ! command -v i3 &>/dev/null && \
-         ! command -v gnome-shell &>/dev/null && ! command -v plasma_session &>/dev/null && \
+         ! command -v hyprland &>/dev/null && ! command -v Hyprland &>/dev/null && \
+         ! command -v sway &>/dev/null && ! command -v wayfire &>/dev/null && \
+         ! command -v i3 &>/dev/null && ! command -v gnome-shell &>/dev/null && \
+         ! command -v plasma_session &>/dev/null && ! command -v plasmashell &>/dev/null && \
+         ! command -v startplasma-wayland &>/dev/null && ! command -v startplasma-x11 &>/dev/null && \
          ! command -v startxfce4 &>/dev/null; then
         RICER_IS_BAREBONES="true"
       fi
@@ -102,7 +104,7 @@ detect_system() {
   fi
 
   # ── Hardware (read from /proc — no extra tools) ──────────────────────────────
-  RICER_CPU=$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null \
+  RICER_CPU=$(grep -m1 -Ei 'model name|hardware|model' /proc/cpuinfo 2>/dev/null \
               | cut -d: -f2 | xargs || echo "unknown")
   RICER_RAM=$(awk '/MemTotal/{printf "%.0f MB", $2/1024}' /proc/meminfo 2>/dev/null \
               || echo "unknown")

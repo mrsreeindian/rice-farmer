@@ -35,13 +35,13 @@ detect_pre_rice() {
 prerice_get_name() {
   local pr="${1:-$(detect_pre_rice)}"
   case "$pr" in
-    omarchy)   profile_omarchy_name ;;
-    cachyos)   profile_cachyos_name ;;
-    garuda)    profile_garuda_name ;;
-    omakub)    profile_omakub_name ;;
-    caelestia) profile_caelestia_name ;;
-    generic)   profile_generic_name ;;
-    *)         echo "Clean / Standard Linux" ;;
+    omarchy)          profile_omarchy_name ;;
+    cachyos)          profile_cachyos_name ;;
+    garuda)           profile_garuda_name ;;
+    omakub)           profile_omakub_name ;;
+    caelestia)        profile_caelestia_name ;;
+    hyprdots|generic) profile_generic_name ;;
+    *)                echo "Clean / Standard Linux" ;;
   esac
 }
 
@@ -49,13 +49,13 @@ prerice_check_conflicts() {
   local pr="$1" repo_dir="$2"
   local raw=()
   case "$pr" in
-    omarchy)   readarray -t raw < <(profile_omarchy_conflicts "$repo_dir" 2>/dev/null || true) ;;
-    cachyos)   readarray -t raw < <(profile_cachyos_conflicts "$repo_dir" 2>/dev/null || true) ;;
-    garuda)    readarray -t raw < <(profile_garuda_conflicts "$repo_dir" 2>/dev/null || true) ;;
-    omakub)    readarray -t raw < <(profile_omakub_conflicts "$repo_dir" 2>/dev/null || true) ;;
-    caelestia) readarray -t raw < <(profile_caelestia_conflicts "$repo_dir" 2>/dev/null || true) ;;
-    generic)   readarray -t raw < <(profile_generic_conflicts "$repo_dir" 2>/dev/null || true) ;;
-    *)         readarray -t raw < <(profile_generic_conflicts "$repo_dir" 2>/dev/null || true) ;;
+    omarchy)          readarray -t raw < <(profile_omarchy_conflicts "$repo_dir" 2>/dev/null || true) ;;
+    cachyos)          readarray -t raw < <(profile_cachyos_conflicts "$repo_dir" 2>/dev/null || true) ;;
+    garuda)           readarray -t raw < <(profile_garuda_conflicts "$repo_dir" 2>/dev/null || true) ;;
+    omakub)           readarray -t raw < <(profile_omakub_conflicts "$repo_dir" 2>/dev/null || true) ;;
+    caelestia)        readarray -t raw < <(profile_caelestia_conflicts "$repo_dir" 2>/dev/null || true) ;;
+    hyprdots|generic) readarray -t raw < <(profile_generic_conflicts "$repo_dir" 2>/dev/null || true) ;;
+    *)                readarray -t raw < <(profile_generic_conflicts "$repo_dir" 2>/dev/null || true) ;;
   esac
 
   for line in "${raw[@]}"; do
@@ -66,13 +66,13 @@ prerice_check_conflicts() {
 prerice_get_resolutions() {
   local pr="$1" repo_dir="$2"
   case "$pr" in
-    omarchy)   profile_omarchy_resolution_steps "$repo_dir" ;;
-    cachyos)   profile_cachyos_resolution_steps "$repo_dir" ;;
-    garuda)    profile_garuda_resolution_steps "$repo_dir" ;;
-    omakub)    profile_omakub_resolution_steps "$repo_dir" ;;
-    caelestia) profile_caelestia_resolution_steps "$repo_dir" ;;
-    generic)   profile_generic_resolution_steps "$repo_dir" ;;
-    *)         profile_generic_resolution_steps "$repo_dir" ;;
+    omarchy)          profile_omarchy_resolution_steps "$repo_dir" ;;
+    cachyos)          profile_cachyos_resolution_steps "$repo_dir" ;;
+    garuda)           profile_garuda_resolution_steps "$repo_dir" ;;
+    omakub)           profile_omakub_resolution_steps "$repo_dir" ;;
+    caelestia)        profile_caelestia_resolution_steps "$repo_dir" ;;
+    hyprdots|generic) profile_generic_resolution_steps "$repo_dir" ;;
+    *)                profile_generic_resolution_steps "$repo_dir" ;;
   esac
 }
 
@@ -80,12 +80,12 @@ prerice_get_dependencies() {
   local pr="$1" repo_dir="$2"
   local raw=()
   case "$pr" in
-    omarchy)   readarray -t raw < <(profile_omarchy_dependencies "$repo_dir" 2>/dev/null || true) ;;
-    cachyos)   readarray -t raw < <(profile_cachyos_dependencies "$repo_dir" 2>/dev/null || true) ;;
-    garuda)    readarray -t raw < <(profile_garuda_dependencies "$repo_dir" 2>/dev/null || true) ;;
-    omakub)    readarray -t raw < <(profile_omakub_dependencies "$repo_dir" 2>/dev/null || true) ;;
-    caelestia) readarray -t raw < <(profile_caelestia_dependencies "$repo_dir" 2>/dev/null || true) ;;
-    *)         readarray -t raw < <(profile_generic_dependencies "$repo_dir" 2>/dev/null || true) ;;
+    omarchy)          readarray -t raw < <(profile_omarchy_dependencies "$repo_dir" 2>/dev/null || true) ;;
+    cachyos)          readarray -t raw < <(profile_cachyos_dependencies "$repo_dir" 2>/dev/null || true) ;;
+    garuda)           readarray -t raw < <(profile_garuda_dependencies "$repo_dir" 2>/dev/null || true) ;;
+    omakub)           readarray -t raw < <(profile_omakub_dependencies "$repo_dir" 2>/dev/null || true) ;;
+    caelestia)        readarray -t raw < <(profile_caelestia_dependencies "$repo_dir" 2>/dev/null || true) ;;
+    *)                readarray -t raw < <(profile_generic_dependencies "$repo_dir" 2>/dev/null || true) ;;
   esac
 
   for p in "${raw[@]}"; do

@@ -2,9 +2,6 @@
 # lib/profiles/omarchy.sh — Omarchy pre-rice configuration profile
 
 profile_omarchy_detect() {
-  if [ -n "${RICER_DISTRO:-}" ] && [ "$RICER_DISTRO" != "omarchy" ]; then
-    return 1
-  fi
   [ "${RICER_DISTRO:-}" = "omarchy" ] \
     || [ -d /usr/share/omarchy ] \
     || [ -d "${HOME}/.config/omarchy" ] \

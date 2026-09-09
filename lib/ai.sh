@@ -11,39 +11,43 @@ RICER_SPAWNED_SERVER_PID=""
 
 # ── Parameter size evaluation (>4B check) ──────────────────────────────────────
 _is_over_4b() {
-  local raw="$1"
-  awk -v str="$raw" '
-    BEGIN {
-      s = tolower(str)
-      if (s ~ /[0-9]+(\.[0-9]+)?m/) { print 0; exit }
-      if (match(s, /([0-9]+(\.[0-9]+)?)[[:space:]]*b/, arr)) {
-        print ((arr[1] + 0) > 4.0) ? 1 : 0
-        exit
-      }
-      if (match(s, /[:\-_]([0-9]+(\.[0-9]+)?)[a-z]*/, arr)) {
-        print ((arr[1] + 0) > 4.0) ? 1 : 0
-        exit
-      }
-      if (s ~ /^[0-9]+(\.[0-9]+)?$/) {
-        print ((s + 0) > 4.0) ? 1 : 0
-        exit
-      }
-      print 0
-    }
-  '
+  local s="${1,,}"
+  if [[ "$s" =~ ([0-9]+(\.[0-9]+)?)[[:space:]]*m ]]; then
+    echo 0
+    return 0
+  fi
+  if [[ "$s" =~ ([0-9]+(\.[0-9]+)?)[[:space:]]*b ]]; then
+    local num="${BASH_REMATCH[1]}"
+    awk -v n="$num" 'BEGIN { print (n > 4.0) ? 1 : 0 }'
+    return 0
+  fi
+  if [[ "$s" =~ [:_-]([0-9]+(\.[0-9]+)?)[a-z]* ]]; then
+    local num="${BASH_REMATCH[1]}"
+    awk -v n="$num" 'BEGIN { print (n > 4.0) ? 1 : 0 }'
+    return 0
+  fi
+  if [[ "$s" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+    awk -v n="$s" 'BEGIN { print (n > 4.0) ? 1 : 0 }'
+    return 0
+  fi
+  echo 0
 }
 
 _get_param_str() {
-  local raw="$1"
-  awk -v str="$raw" '
-    BEGIN {
-      s = tolower(str)
-      if (match(s, /([0-9]+(\.[0-9]+)?)[[:space:]]*b/, arr)) { print arr[1] "B"; exit }
-      if (match(s, /[:\-_]([0-9]+(\.[0-9]+)?)[a-z]*/, arr)) { print arr[1] "B"; exit }
-      if (match(s, /([0-9]+(\.[0-9]+)?)[[:space:]]*m/, arr)) { print arr[1] "M"; exit }
-      print str
-    }
-  '
+  local s="${1,,}"
+  if [[ "$s" =~ ([0-9]+(\.[0-9]+)?)[[:space:]]*b ]]; then
+    echo "${BASH_REMATCH[1]}B"
+    return 0
+  fi
+  if [[ "$s" =~ [:_-]([0-9]+(\.[0-9]+)?)[a-z]* ]]; then
+    echo "${BASH_REMATCH[1]}B"
+    return 0
+  fi
+  if [[ "$s" =~ ([0-9]+(\.[0-9]+)?)[[:space:]]*m ]]; then
+    echo "${BASH_REMATCH[1]}M"
+    return 0
+  fi
+  echo "$1"
 }
 
 # ── Backend detection (Local-First: Ollama & llama.cpp, threshold >4B) ─────────
@@ -73,6 +77,7 @@ detect_ai_backend() {
       if ollama_tags=$(curl -fsSL --max-time 1 "http://127.0.0.1:11434/api/tags" 2>/dev/null); then
         ollama_running=true
         RICER_SPAWNED_SERVER_PID="$opid"
+        [ -n "${RICER_SERVER_PID_FILE:-}" ] && echo "$opid" > "$RICER_SERVER_PID_FILE"
         break
       fi
       sleep 0.2
@@ -161,6 +166,7 @@ detect_ai_backend() {
           llama-server -m "$cpath" --port 8080 >/dev/null 2>&1 &
           local lpid=$!
           RICER_SPAWNED_SERVER_PID="$lpid"
+          [ -n "${RICER_SERVER_PID_FILE:-}" ] && echo "$lpid" > "$RICER_SERVER_PID_FILE"
           for _ in {1..15}; do
             if curl -fsSL --max-time 1 "http://127.0.0.1:8080/v1/models" &>/dev/null; then
               break
@@ -295,28 +301,35 @@ Output raw JSON only.
 PROMPT
 }
 
-# ── Ask Pollinations.ai (anonymous GET — free, no key) ────────────────────────
+# ── Ask Pollinations.ai (anonymous POST — free, no key) ───────────────────────
 _ask_pollinations() {
   local prompt="$1"
-  local encoded
-  encoded=$(_urlencode "$prompt")
+  local model="${RICER_POLLIN_MODEL:-openai}"
+
+  local tmp_resp
+  tmp_resp=$(mktemp /tmp/ricer_ai_resp.XXXXXX)
+
+  local post_payload
+  post_payload=$(jq -nc --arg p "$prompt" --arg m "$model" \
+    '{"messages":[{"role":"user","content":$p}],"model":$m,"seed":42,"jsonMode":true}')
 
   # --no-netrc: guarantees anonymous request (no injected auth credentials)
-  # -f: fail silently on 4xx/5xx (returns non-zero exit code)
-  local response http_code
-  http_code=$(curl -o /tmp/ricer_ai_resp.tmp -s -w "%{http_code}" \
+  local http_code
+  http_code=$(curl -o "$tmp_resp" -s -w "%{http_code}" \
     --max-time "$AI_TIMEOUT" \
     --no-netrc \
     --no-keepalive \
-    "${POLLINATIONS_TEXT}/${encoded}" 2>/dev/null || echo "000")
+    -H "Content-Type: application/json" \
+    -d "$post_payload" \
+    "${POLLINATIONS_TEXT}/" 2>/dev/null || echo "000")
 
   case "$http_code" in
-    200) cat /tmp/ricer_ai_resp.tmp ;;
+    200) cat "$tmp_resp" ;;
     402) log_warn "Pollinations.ai: rate limit hit — falling back to rule engine." ;;
     000) log_warn "Pollinations.ai: request timed out (${AI_TIMEOUT}s) — falling back." ;;
     *)   log_warn "Pollinations.ai: HTTP ${http_code} — falling back to rule engine." ;;
   esac
-  rm -f /tmp/ricer_ai_resp.tmp
+  rm -f "$tmp_resp"
 }
 
 # ── Ask Ollama ─────────────────────────────────────────────────────────────────

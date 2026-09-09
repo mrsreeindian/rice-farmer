@@ -60,3 +60,14 @@ _tmpdir() { mktemp -d; }
   rm -rf "$d"
   echo "$result" | jq -e 'length > 0 and (.[0].type == "resolve_conflict")'
 }
+
+@test "Detects Omarchy profile on Arch Linux with ~/.config/omarchy" {
+  local orig_home="$HOME"
+  local test_h
+  test_h=$(_tmpdir)
+  mkdir -p "$test_h/.config/omarchy"
+  HOME="$test_h" RICER_PRE_RICE="" RICER_DISTRO="arch" result=$(detect_pre_rice)
+  rm -rf "$test_h"
+  HOME="$orig_home"
+  [ "$result" = "omarchy" ]
+}

@@ -2,9 +2,6 @@
 # lib/profiles/garuda.sh — Garuda Linux pre-rice configuration profile
 
 profile_garuda_detect() {
-  if [ -n "${RICER_DISTRO:-}" ] && [ "$RICER_DISTRO" != "garuda" ]; then
-    return 1
-  fi
   [ "${RICER_DISTRO:-}" = "garuda" ] \
     || [ -f /etc/garuda-release ] \
     || [ -d /usr/share/garuda ] \
