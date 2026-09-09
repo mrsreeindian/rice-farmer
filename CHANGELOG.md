@@ -3,6 +3,10 @@
 ## [1.1.1] — 2026-09-08
 ### Added
 - `--clean-orphans` flag (with `--remove-orphans` and `--prune-orphans` aliases): automatically removes unused / orphan packages across supported package managers (`pacman`, `apt`, `dnf`, `yum`, `zypper`, `emerge`, `xbps-remove`, `brew`) after rice installation.
+- Reworked update channels:
+  - `ricer update`: pulls the latest official GitHub release only (`/releases/latest`), preventing inadvertent edge/beta upgrades and version regressions.
+  - `ricer update --beta`: pulls the latest git tag (`/tags`) directly from GitHub, allowing users to update to latest tagged pre-release builds.
+  - Pinned raw file asset downloads using the resolved tag/release name.
 
 ## [1.1.0] — 2026-09-08
 ### Added

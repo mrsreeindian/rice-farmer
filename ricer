@@ -37,6 +37,7 @@ RICER_NO_BACKUP=false
 RICER_OFFLINE=false
 RICER_POLLIN_MODEL="openai"
 RICER_CLEAN_ORPHANS=false
+RICER_UPDATE_BETA=false
 
 # ── Usage ─────────────────────────────────────────────────────────────────────
 usage() {
@@ -48,7 +49,7 @@ ${BOLD}USAGE${RESET}
   ricer detect                  Show detected system info
   ricer install <github-url>    Install a rice/dotfile repo
   ricer restore                 Restore the latest config backup
-  ricer update                  Check for updates and pull the latest version
+  ricer update [--beta]         Check for updates and pull latest release (or latest tag)
   ricer uninstall               Remove Rice Farmer from the system
 
 ${BOLD}FLAGS${RESET}
@@ -56,6 +57,7 @@ ${BOLD}FLAGS${RESET}
   --no-backup      Skip config backup (dangerous!)
   --offline        Skip AI call, use built-in rule engine only
   --clean-orphans  Remove orphan/unused packages after installation
+  --beta           Pull latest git tag instead of official release (update only)
   --model <name>   AI model to use (default: openai)
   --version        Print version and exit
   --help           Show this help
@@ -66,6 +68,7 @@ ${BOLD}EXAMPLES${RESET}
   ricer install https://github.com/user/hyprland-dots --clean-orphans
   ricer restore
   ricer update
+  ricer update --beta
   ricer uninstall
 
 HELP
@@ -81,6 +84,7 @@ while [[ $# -gt 0 ]]; do
     --no-backup)      RICER_NO_BACKUP=true; shift ;;
     --offline)        RICER_OFFLINE=true; shift ;;
     --clean-orphans|--remove-orphans|--prune-orphans) RICER_CLEAN_ORPHANS=true; shift ;;
+    --beta)           RICER_UPDATE_BETA=true; shift ;;
     --model)          RICER_POLLIN_MODEL="$2"; shift 2 ;;
     --version|-v)     echo "Rice Farmer v${VERSION}"; exit 0 ;;
     --help|-h)        usage; exit 0 ;;
@@ -232,102 +236,125 @@ cmd_restore() {
 
 # ── Subcommand: update ────────────────────────────────────────────────────────
 cmd_update() {
-  local repo_raw="https://raw.githubusercontent.com/mrsreeindian/rice-farmer/main"
   local bin_dir="${HOME}/.local/bin"
   local lib_dir="${HOME}/.local/lib/ricer"
   local share_dir="${HOME}/.local/share/ricer"
+  local channel="release"
+  local remote_tag=""
 
-  log_info "Checking for updates from GitHub..."
+  # ── Determine update channel ───────────────────────────────────────────────
+  if [ "${RICER_UPDATE_BETA:-false}" = "true" ]; then
+    channel="beta"
+    log_info "Checking for latest tag from GitHub (beta channel)..."
+    remote_tag=$(curl -fsSL --max-time 10 \
+      -H "Accept: application/vnd.github.v3+json" \
+      "https://api.github.com/repos/mrsreeindian/rice-farmer/tags" 2>/dev/null \
+      | jq -r '.[0].name // empty' 2>/dev/null || true)
 
-  # If running inside a git clone repository (developer mode)
-  if [ -d "${RICER_SELF}/.git" ]; then
-    log_info "Git repository detected at ${RICER_SELF}."
-    (
-      cd "${RICER_SELF}"
-      git fetch origin main --quiet 2>/dev/null || git fetch origin --quiet
-      local local_hash remote_hash
-      local_hash=$(git rev-parse HEAD 2>/dev/null || echo "local")
-      remote_hash=$(git rev-parse origin/main 2>/dev/null || echo "remote")
-
-      if [ "$local_hash" = "$remote_hash" ]; then
-        log_ok "Already on the latest version (${VERSION})."
-        exit 0
-      fi
-
-      log_info "Pulling latest changes from git..."
-      if git pull --ff-only origin main; then
-        local new_ver
-        new_ver=$(cat "${RICER_SELF}/.version" 2>/dev/null || echo "$VERSION")
-        log_ok "Updated successfully to v${new_ver}!"
-      else
-        die "Failed to pull updates automatically via git."
-      fi
-    )
-    return 0
-  fi
-
-  # Installed mode (via curl installer)
-  local remote_version=""
-
-  # 1. Try GitHub tags API first (authoritative on git push, immediate)
-  remote_version=$(curl -fsSL --max-time 10 \
-    -H "Accept: application/vnd.github.v3+json" \
-    "https://api.github.com/repos/mrsreeindian/rice-farmer/tags" 2>/dev/null \
-    | jq -r '.[0].name // empty' 2>/dev/null || true)
-
-  # 2. Fallback to GitHub releases API
-  if [ -z "$remote_version" ] || [ "$remote_version" = "null" ]; then
-    remote_version=$(curl -fsSL --max-time 10 \
+    if [ -z "$remote_tag" ] || [ "$remote_tag" = "null" ]; then
+      die "Could not fetch tags from GitHub. Check your internet connection."
+    fi
+  else
+    channel="release"
+    log_info "Checking for latest release from GitHub (release channel)..."
+    # Pull the latest official GitHub release only
+    remote_tag=$(curl -fsSL --max-time 10 \
       -H "Accept: application/vnd.github.v3+json" \
       "https://api.github.com/repos/mrsreeindian/rice-farmer/releases/latest" 2>/dev/null \
       | jq -r '.tag_name // empty' 2>/dev/null || true)
-  fi
 
-  # 3. Fallback to raw .version with cache-busting timestamp
-  if [ -z "$remote_version" ] || [ "$remote_version" = "null" ]; then
-    remote_version=$(curl -fsSL --max-time 10 \
-      "${repo_raw}/.version?nocache=$(date +%s)" 2>/dev/null || true)
-  fi
-
-  # Clean versions: remove leading 'v', strip whitespace
-  remote_version=$(echo "$remote_version" | sed -e 's/^v//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-  local current_version
-  current_version=$(echo "$VERSION" | sed -e 's/^v//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-
-  if [ -z "$remote_version" ]; then
-    die "Could not check remote version from GitHub. Check your internet connection."
+    if [ -z "$remote_tag" ] || [ "$remote_tag" = "null" ]; then
+      die "Could not find a published release on GitHub. Use 'ricer update --beta' to pull the latest tag."
+    fi
   fi
 
   _ver_lte() {
     [ "$1" = "$2" ] || [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -n 1)" = "$1" ]
   }
 
-  if [ "$current_version" != "dev" ] && _ver_lte "$remote_version" "$current_version"; then
-    log_ok "Already on the latest version (v${current_version})."
+  # ── If running inside a git clone repository (developer mode) ───────────────
+  if [ -d "${RICER_SELF}/.git" ]; then
+    log_info "Git repository detected at ${RICER_SELF}."
+    (
+      cd "${RICER_SELF}"
+      git fetch origin --tags --quiet 2>/dev/null || git fetch origin --quiet
+
+      local current_target
+      current_target=$(git describe --tags --exact-match 2>/dev/null || echo "$VERSION")
+
+      local clean_remote clean_current
+      clean_remote=$(echo "$remote_tag" | sed -e 's/^v//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+      clean_current=$(echo "$current_target" | sed -e 's/^v//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+
+      if [ "$clean_current" != "dev" ]; then
+        if [ "$clean_remote" = "$clean_current" ]; then
+          log_ok "Already on the latest ${channel} (${remote_tag})."
+          exit 0
+        elif _ver_lte "$clean_remote" "$clean_current"; then
+          if [ "$channel" = "release" ]; then
+            log_ok "Current checkout (${current_target}) is up to date with latest release (${remote_tag})."
+          else
+            log_ok "Already on the latest tag (${current_target})."
+          fi
+          exit 0
+        fi
+      fi
+
+      log_info "Target ${channel}: ${remote_tag} (current: ${current_target})"
+      confirm "Update git checkout to ${remote_tag}?" "y" || { log_info "Update cancelled."; exit 0; }
+
+      if git checkout "$remote_tag" --quiet; then
+        local new_ver
+        new_ver=$(cat "${RICER_SELF}/.version" 2>/dev/null || echo "$remote_tag")
+        log_ok "Updated successfully to v${new_ver} (${channel})!"
+      else
+        die "Failed to checkout tag ${remote_tag}."
+      fi
+    )
     return 0
   fi
 
-  log_info "New version available: v${remote_version} (current: v${current_version})"
+  # ── Installed mode (via curl installer) ────────────────────────────────────
+  local remote_version
+  remote_version=$(echo "$remote_tag" | sed -e 's/^v//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+  local current_version
+  current_version=$(echo "$VERSION" | sed -e 's/^v//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+
+  if [ "$current_version" != "dev" ]; then
+    if [ "$remote_version" = "$current_version" ]; then
+      log_ok "Already on the latest ${channel} (v${current_version})."
+      return 0
+    elif _ver_lte "$remote_version" "$current_version"; then
+      if [ "$channel" = "release" ]; then
+        log_ok "Current version (v${current_version}) is up to date with latest release (v${remote_version})."
+      else
+        log_ok "Already on the latest tag (v${current_version})."
+      fi
+      return 0
+    fi
+  fi
+
+  log_info "New ${channel} available: v${remote_version} (current: v${current_version})"
   confirm "Update now?" "y" || { log_info "Update cancelled."; return 0; }
 
-  log_info "Downloading latest version..."
+  log_info "Downloading ${remote_tag}..."
   mkdir -p "$bin_dir" "$lib_dir" "$share_dir"
+
+  local repo_raw="https://raw.githubusercontent.com/mrsreeindian/rice-farmer/${remote_tag}"
 
   # Download main script atomically so bash file-offset is not disturbed while running
   local tmp_bin
   tmp_bin=$(mktemp "${bin_dir}/ricer.tmp.XXXXXX")
   if ! curl -fsSL --max-time 30 "${repo_raw}/ricer" -o "$tmp_bin"; then
     rm -f "$tmp_bin"
-    die "Failed to download ricer script."
+    die "Failed to download ricer script from ${remote_tag}."
   fi
   chmod +x "$tmp_bin"
   mv -f "$tmp_bin" "${bin_dir}/ricer"
 
   # Download libraries
   for lib in utils detect prerice ai rules install; do
-    if ! curl -fsSL --max-time 30 "${repo_raw}/lib/${lib}.sh" -o "${lib_dir}/${lib}.sh"; then
-      die "Failed to download lib/${lib}.sh."
-    fi
+    curl -fsSL --max-time 30 "${repo_raw}/lib/${lib}.sh" -o "${lib_dir}/${lib}.sh" 2>/dev/null || true
   done
 
   # Download pre-rice profiles
@@ -337,7 +364,7 @@ cmd_update() {
   done
 
   echo "$remote_version" > "${share_dir}/.version"
-  log_ok "Updated successfully to Rice Farmer v${remote_version}!"
+  log_ok "Updated successfully to Rice Farmer v${remote_version} (${channel})!"
   exit 0
 }
 

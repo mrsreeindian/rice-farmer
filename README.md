@@ -48,8 +48,11 @@ ricer install https://github.com/username/dotfiles --dry-run
 # Restore your previous configs
 ricer restore
 
-# Check and update Rice Farmer to the latest version
+# Check and update Rice Farmer to the latest official release
 ricer update
+
+# Update to the latest git tag (beta / edge builds)
+ricer update --beta
 
 # Uninstall Rice Farmer
 ricer uninstall
@@ -63,6 +66,7 @@ ricer uninstall
 | `--no-backup` | Skip config backup (use with care) |
 | `--offline` | Force rule engine, skip AI call |
 | `--clean-orphans` | Remove orphan/unused packages after install |
+| `--beta` | Pull latest git tag instead of release (`ricer update` only) |
 | `--model <name>` | Override AI model name (default: `openai`) |
 
 ---

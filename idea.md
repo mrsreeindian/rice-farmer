@@ -89,8 +89,11 @@ A Linux ricing utility that can:
 - Automatically used when offline (`--offline`) or when cloud AI service is unreachable.
 
 ### 8. CLI Lifecycle & Self-Management
-- `ricer update`: Atomic self-update command supporting both git clones and cURL-installed setups (with GitHub release and tag API fallbacks).
+- `ricer update`: Atomic self-update pulling the latest official GitHub release only (`/releases/latest`), preventing untested edge updates or unintended downgrades.
+- `ricer update --beta`: Update channel pulling the latest git tag (`/tags`), allowing users and developers to update to the latest tagged beta/edge versions before a formal GitHub release is published.
+- Both modes support git clones (developer mode checking out target tag/release) and cURL-installed setups (atomic downloads pinned to the target version).
 - `ricer uninstall`: Clean interactive removal of binary, libraries, and share files while preserving user backups.
 - `ricer detect`: Formatted system diagnostic display compatible with pure ASCII terminals and minimal TTYs.
 - **Orphan package pruning**: `--clean-orphans` flag (aliases: `--remove-orphans`, `--prune-orphans`) to automatically identify and clean up unneeded dependencies and orphaned packages across all supported package managers (`pacman -Rns $(pacman -Qtdq)`, `apt autoremove`, `dnf autoremove`, `emerge --depclean`, etc.) after rice installation.
-- CLI flags: `--dry-run`, `--offline`, `--no-backup`, `--clean-orphans`, `--model`, `--version`, `--help`.
+- CLI flags: `--dry-run`, `--offline`, `--no-backup`, `--clean-orphans`, `--beta`, `--model`, `--version`, `--help`.
+
