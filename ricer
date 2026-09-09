@@ -35,6 +35,7 @@ VERSION="$(cat "${RICER_SELF}/.version" 2>/dev/null \
 RICER_DRY_RUN=false
 RICER_NO_BACKUP=false
 RICER_OFFLINE=false
+RICER_LOCAL=false
 RICER_POLLIN_MODEL="openai"
 RICER_CLEAN_ORPHANS=false
 RICER_UPDATE_BETA=false
@@ -54,6 +55,7 @@ ${BOLD}USAGE${RESET}
 
 ${BOLD}FLAGS${RESET}
   --dry-run        Show the install plan without executing
+  --local          Search for local models in Ollama / llama.cpp (>4B params)
   --no-backup      Skip config backup (dangerous!)
   --offline        Skip AI call, use built-in rule engine only
   --clean-orphans  Remove orphan/unused packages after installation
@@ -64,6 +66,7 @@ ${BOLD}FLAGS${RESET}
 
 ${BOLD}EXAMPLES${RESET}
   ricer install https://github.com/username/dotfiles
+  ricer install https://github.com/user/hyprland-dots --local
   ricer install https://github.com/user/hyprland-dots --dry-run
   ricer install https://github.com/user/hyprland-dots --clean-orphans
   ricer restore
@@ -81,6 +84,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     detect|install|restore|update|uninstall) SUBCOMMAND="$1"; shift ;;
     --dry-run)        RICER_DRY_RUN=true; shift ;;
+    --local)          RICER_LOCAL=true; shift ;;
     --no-backup)      RICER_NO_BACKUP=true; shift ;;
     --offline)        RICER_OFFLINE=true; shift ;;
     --clean-orphans|--remove-orphans|--prune-orphans) RICER_CLEAN_ORPHANS=true; shift ;;
@@ -103,7 +107,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-export RICER_NO_BACKUP RICER_OFFLINE RICER_POLLIN_MODEL RICER_CLEAN_ORPHANS
+export RICER_NO_BACKUP RICER_OFFLINE RICER_LOCAL RICER_POLLIN_MODEL RICER_CLEAN_ORPHANS
 
 # ── Dependency check ──────────────────────────────────────────────────────────
 check_deps() {
@@ -139,8 +143,8 @@ cmd_install() {
   # ── Clone repo ────────────────────────────────────────────────────────────
   local tmp_dir
   tmp_dir=$(mktemp -d /tmp/ricer-XXXXXXXXXX)
-  # Always clean up temp dir on exit
-  trap 'spinner_stop; rm -rf "$tmp_dir"; log_dim "Cleaned up $tmp_dir"' EXIT
+  # Always clean up temp dir and any spawned local AI server on exit
+  trap 'spinner_stop; [ -n "${RICER_SPAWNED_SERVER_PID:-}" ] && kill "${RICER_SPAWNED_SERVER_PID}" 2>/dev/null || true; [ -n "${tmp_dir:-}" ] && rm -rf "${tmp_dir}" && log_dim "Cleaned up ${tmp_dir}"' EXIT
 
   log_info "Cloning ${GITHUB_URL}..."
   if ! GIT_TERMINAL_PROMPT=0 \
@@ -149,7 +153,7 @@ cmd_install() {
   fi
   log_ok "Cloned to ${tmp_dir}"
 
-  # ── Determine installation approach ───────────────────────────────────────
+  # ── Determine installation approach (File-First) ───────────────────────────
   log_info "Searching repository files for install script..."
   local install_script=""
   install_script=$(find_install_script "$tmp_dir" 2>/dev/null || true)
@@ -174,7 +178,7 @@ cmd_install() {
     fi
   else
     log_info "No install script found. Initializing AI to plan filesystem changes..."
-    if [ "$RICER_OFFLINE" = "false" ]; then
+    if [ "$RICER_OFFLINE" = "false" ] || [ "$RICER_LOCAL" = "true" ]; then
       plan=$(get_ai_plan "$tmp_dir" "$GITHUB_URL") || true
     fi
     if [ -z "$plan" ] || [ "$plan" = "null" ] || [ "$plan" = "[]" ]; then

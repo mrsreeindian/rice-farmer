@@ -56,9 +56,16 @@ A Linux ricing utility that can:
   - Automatically identifies tools and dependencies required by the incoming rice that are missing on the host
   - Injects native package manager installation steps into the plan automatically
 
-### 4. File-First Install Flow & AI Filesystem Engine
-- **Search Files First**: Searches the repository for an install script (`install.sh`, `setup.sh`, `bootstrap.sh`, `rice.sh`, `deploy.sh`, etc., across root and common script directories) before doing anything else.
-- **No AI Initialization on Script Discovery**: If an install script is found, AI is not initialized, avoiding unnecessary network latency or local model queries; the install script is configured to execute directly.
+### 4. Local-First Architecture & AI Filesystem Engine (v1.2.0)
+- **Local-First & Zero-Online Initial Phase**: Searches repository files for an install script (`install.sh`, `setup.sh`, `bootstrap.sh`, `rice.sh`, `deploy.sh`, etc.) first. If found, AI is never initialized and zero online calls are made; the script is executed directly.
+- **Local AI Auto-Discovery**: When no install script exists, Rice Farmer automatically searches for local models in:
+  - **Ollama**: Queries local daemon or spins up local server to inspect installed model tags and parameter sizes.
+  - **llama.cpp**: Connects to active `llama-server` instances or discovers local `.gguf` weights (`~/models`, `~/.cache/llama.cpp`, `~/.local/share/models`).
+- **4B Parameter Capability Threshold**:
+  - Automatically evaluates model parameter count (e.g. `8B`, `7B`, `14B` vs `0.6B`, `1B`, `3B`).
+  - If a local model with **over 4B parameters** (`> 4B`) is found, it initializes and executes the plan locally without touching online endpoints.
+  - If local models have **4B parameters or fewer**, Rice Farmer displays a clear warning (`Your local model is not powerful enough`) and falls back to online models (or the rule engine if `--offline`).
+- **`--local` Flag**: Dedicated flag to explicitly prioritize local Ollama and llama.cpp models.
 - **AI Exclusively for Filesystem Moves & Modifications**: AI is only initialized when no install script exists in the repository. Its role is strictly to inspect the configuration tree and generate filesystem operations (`copy`, `symlink`, `stow`, `grub_theme`) to deploy configs into `~/.config/` and `$HOME`.
 - **Scriptless Dotfile Repositories**: Intelligently handles repositories that lack any install or setup script:
   - `.config/` directories into `~/.config/`
@@ -97,5 +104,6 @@ A Linux ricing utility that can:
 - `ricer uninstall`: Clean interactive removal of binary, libraries, and share files while preserving user backups.
 - `ricer detect`: Formatted system diagnostic display compatible with pure ASCII terminals and minimal TTYs.
 - **Orphan package pruning**: `--clean-orphans` flag (aliases: `--remove-orphans`, `--prune-orphans`) to automatically identify and clean up unneeded dependencies and orphaned packages across all supported package managers (`pacman -Rns $(pacman -Qtdq)`, `apt autoremove`, `dnf autoremove`, `emerge --depclean`, etc.) after rice installation.
-- CLI flags: `--dry-run`, `--offline`, `--no-backup`, `--clean-orphans`, `--beta`, `--model`, `--version`, `--help`.
+- CLI flags: `--dry-run`, `--local`, `--offline`, `--no-backup`, `--clean-orphans`, `--beta`, `--model`, `--version`, `--help`.
+
 

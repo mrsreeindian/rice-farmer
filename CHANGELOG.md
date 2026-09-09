@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.2.0] — 2026-09-09
+### Added
+- Local-First AI Architecture & Model Management:
+  - Zero-online install search: searches repository files first and skips AI entirely when an install script is detected.
+  - Searches local models in **Ollama** and **llama.cpp** (`llama-server`, `llama-cli`, and GGUF model stores) before making any online calls.
+  - `--local` flag to search for and prioritize local models.
+  - Parameter threshold check: evaluates whether local models have over 4B parameters (`> 4B`).
+  - Automatic model initialization: boots and uses local models >4B parameters without contacting online cloud backends.
+  - Under-powered model warning: alerts users when local models have ≤4B parameters and falls back to online models (or rule engine if `--offline`).
+
 ## [1.1.1] — 2026-09-08
 ### Added
 - `--clean-orphans` flag (with `--remove-orphans` and `--prune-orphans` aliases): automatically removes unused / orphan packages across supported package managers (`pacman`, `apt`, `dnf`, `yum`, `zypper`, `emerge`, `xbps-remove`, `brew`) after rice installation.

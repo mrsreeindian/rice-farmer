@@ -63,6 +63,7 @@ ricer uninstall
 | Flag | Description |
 |---|---|
 | `--dry-run` | Show the plan, don't execute |
+| `--local` | Search for and use local Ollama / llama.cpp models (>4B params) |
 | `--no-backup` | Skip config backup (use with care) |
 | `--offline` | Force rule engine, skip AI call |
 | `--clean-orphans` | Remove orphan/unused packages after install |
@@ -77,13 +78,16 @@ ricer uninstall
 1. detect    -> reads /proc, /etc/os-release, $XDG_CURRENT_DESKTOP
 2. clone     -> git clone --depth=1 <url> /tmp/ricer-XXXX/
 3. search    -> searches repo files for install script (skips AI if found)
-4. AI plan   -> if no script, initializes AI to plan filesystem moves & configs
+4. AI plan   -> if no script, searches local models (Ollama, llama.cpp >4B) before online
 5. confirm   -> shows you the plan, asks for approval
 6. execute   -> backup -> install deps -> stow / copy / symlink / run script
 7. cleanup   -> rm -rf /tmp/ricer-XXXX/
 ```
 
-Rice Farmer searches repository files first: if an install script (`install.sh`, `setup.sh`, etc.) is present, it skips AI initialization entirely and configures execution of the script. AI is initialized and used only when no install script exists, specifically to inspect configurations and generate filesystem migration plans (copying to `~/.config/`, `$HOME`, stow, or symlinks). If AI is unreachable or `--offline` is set, the offline rule engine handles detection.
+Rice Farmer is **local-first**:
+1. **File Search First**: It searches repository files first. If an install script (`install.sh`, `setup.sh`, etc.) is present, it executes the script and never touches AI or online endpoints.
+2. **Local AI Discovery**: When no install script exists, it searches for local models in **Ollama** and **llama.cpp** before attempting any online requests.
+3. **4B Parameter Threshold**: It verifies if the local model has over 4B parameters (`>4B`). If found, it initializes and runs inference locally. If the local model has 4B parameters or fewer, it warns the user and falls back to the online model (or built-in rule engine if `--offline` is set).
 
 ---
 

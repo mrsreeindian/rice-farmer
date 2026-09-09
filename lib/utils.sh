@@ -29,7 +29,7 @@ spinner_start() {
   (
     i=0
     while true; do
-      printf "\r${CYAN}%s${RESET} %s  " "${frames[$((i % ${#frames[@]}))]}" "$msg"
+      printf "\r${CYAN}%s${RESET} %s  " "${frames[$((i % ${#frames[@]}))]}" "$msg" >&2
       sleep 0.1
       ((i++))
     done
@@ -43,7 +43,7 @@ spinner_stop() {
     kill "$_SPINNER_PID" 2>/dev/null || true
     wait "$_SPINNER_PID" 2>/dev/null || true
     _SPINNER_PID=""
-    printf "\r\033[K"
+    printf "\r\033[K" >&2
   fi
 }
 

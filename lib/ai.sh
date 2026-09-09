@@ -4,26 +4,195 @@
 POLLINATIONS_TEXT="https://text.pollinations.ai"
 AI_TIMEOUT=40   # seconds before falling back to rule engine
 RICER_AI_BACKEND=""
+RICER_OLLAMA_MODEL=""
+RICER_LLAMACPP_URL=""
+RICER_LLAMA_CLI_MODEL=""
+RICER_SPAWNED_SERVER_PID=""
 
-# ── Backend detection ──────────────────────────────────────────────────────────
+# ── Parameter size evaluation (>4B check) ──────────────────────────────────────
+_is_over_4b() {
+  local raw="$1"
+  awk -v str="$raw" '
+    BEGIN {
+      s = tolower(str)
+      if (s ~ /[0-9]+(\.[0-9]+)?m/) { print 0; exit }
+      if (match(s, /([0-9]+(\.[0-9]+)?)[[:space:]]*b/, arr)) {
+        print ((arr[1] + 0) > 4.0) ? 1 : 0
+        exit
+      }
+      if (match(s, /[:\-_]([0-9]+(\.[0-9]+)?)[a-z]*/, arr)) {
+        print ((arr[1] + 0) > 4.0) ? 1 : 0
+        exit
+      }
+      if (s ~ /^[0-9]+(\.[0-9]+)?$/) {
+        print ((s + 0) > 4.0) ? 1 : 0
+        exit
+      }
+      print 0
+    }
+  '
+}
+
+_get_param_str() {
+  local raw="$1"
+  awk -v str="$raw" '
+    BEGIN {
+      s = tolower(str)
+      if (match(s, /([0-9]+(\.[0-9]+)?)[[:space:]]*b/, arr)) { print arr[1] "B"; exit }
+      if (match(s, /[:\-_]([0-9]+(\.[0-9]+)?)[a-z]*/, arr)) { print arr[1] "B"; exit }
+      if (match(s, /([0-9]+(\.[0-9]+)?)[[:space:]]*m/, arr)) { print arr[1] "M"; exit }
+      print str
+    }
+  '
+}
+
+# ── Backend detection (Local-First: Ollama & llama.cpp, threshold >4B) ─────────
 detect_ai_backend() {
-  # Prefer local Ollama if already running (offline, faster)
-  if curl -s --max-time 2 http://localhost:11434/api/tags &>/dev/null; then
-    RICER_AI_BACKEND="ollama"
-    # Pick best available model (smallest first for low-end hw)
-    for model in llama3.2:3b llama3.2 llama3.1 mistral phi3; do
-      if curl -s http://localhost:11434/api/tags | grep -q "\"$model\""; then
-        RICER_OLLAMA_MODEL="$model"
+  RICER_AI_BACKEND=""
+  local is_forced_local="${RICER_LOCAL:-false}"
+
+  if [ "$is_forced_local" = "true" ]; then
+    log_info "Local AI flag (--local) active. Searching for local models in Ollama and llama.cpp..."
+  else
+    log_info "Local-first check: searching for local models in Ollama and llama.cpp..."
+  fi
+
+  local -a candidates=()   # format: type|name|pstr|is_over_4b|path_or_url
+
+  # ── 1. Check Ollama ────────────────────────────────────────────────────────
+  local ollama_tags=""
+  local ollama_running=false
+
+  if ollama_tags=$(curl -fsSL --max-time 1 "http://127.0.0.1:11434/api/tags" 2>/dev/null); then
+    ollama_running=true
+  elif command -v ollama &>/dev/null; then
+    log_dim "Starting local Ollama server to inspect models..."
+    ollama serve >/dev/null 2>&1 &
+    local opid=$!
+    for _ in {1..10}; do
+      if ollama_tags=$(curl -fsSL --max-time 1 "http://127.0.0.1:11434/api/tags" 2>/dev/null); then
+        ollama_running=true
+        RICER_SPAWNED_SERVER_PID="$opid"
         break
       fi
+      sleep 0.2
     done
-    RICER_OLLAMA_MODEL="${RICER_OLLAMA_MODEL:-llama3.2}"
-    log_dim "AI: Ollama (${RICER_OLLAMA_MODEL})"
-  else
-    RICER_AI_BACKEND="pollinations"
-    log_dim "AI: Pollinations.ai (cloud, no key)"
   fi
+
+  if [ "$ollama_running" = "true" ] && [ -n "$ollama_tags" ]; then
+    local count
+    count=$(echo "$ollama_tags" | jq '.models | length' 2>/dev/null || echo 0)
+    for (( i=0; i<count; i++ )); do
+      local mname mparam
+      mname=$(echo "$ollama_tags" | jq -r ".models[$i].name // empty")
+      mparam=$(echo "$ollama_tags" | jq -r ".models[$i].details.parameter_size // empty")
+      [ -z "$mparam" ] && mparam="$mname"
+      local is_over pstr
+      is_over=$(_is_over_4b "$mparam")
+      pstr=$(_get_param_str "$mparam")
+      candidates+=("ollama|${mname}|${pstr}|${is_over}|http://127.0.0.1:11434")
+    done
+  fi
+
+  # ── 2. Check llama.cpp ──────────────────────────────────────────────────────
+  local llamacpp_models=""
+  local llamacpp_running=false
+
+  if llamacpp_models=$(curl -fsSL --max-time 1 "http://127.0.0.1:8080/v1/models" 2>/dev/null); then
+    llamacpp_running=true
+    local count
+    count=$(echo "$llamacpp_models" | jq '.data | length' 2>/dev/null || echo 0)
+    for (( i=0; i<count; i++ )); do
+      local mid
+      mid=$(echo "$llamacpp_models" | jq -r ".data[$i].id // empty")
+      local is_over pstr
+      is_over=$(_is_over_4b "$mid")
+      pstr=$(_get_param_str "$mid")
+      candidates+=("llamacpp|${mid}|${pstr}|${is_over}|http://127.0.0.1:8080")
+    done
+  fi
+
+  # Search disk for GGUF models for llama-server or llama-cli
+  local -a gguf_files=()
+  for search_dir in "$HOME/models" "$HOME/.cache/llama.cpp" "$HOME/.local/share/models" "/usr/share/models" "${MODELS_DIR:-}"; do
+    [ -d "$search_dir" ] || continue
+    while IFS= read -r -d '' f; do
+      gguf_files+=("$f")
+    done < <(find "$search_dir" -maxdepth 2 -name "*.gguf" -type f -print0 2>/dev/null)
+  done
+
+  for gfile in "${gguf_files[@]}"; do
+    local gname is_over pstr
+    gname=$(basename "$gfile")
+    is_over=$(_is_over_4b "$gname")
+    pstr=$(_get_param_str "$gname")
+    candidates+=("llama-file|${gname}|${pstr}|${is_over}|${gfile}")
+  done
+
+  # ── 3. Evaluate local candidates ───────────────────────────────────────────
+  local chosen=""
+  local fallback_candidate=""
+
+  for entry in "${candidates[@]}"; do
+    IFS="|" read -r ctype cname cpstr cover cpath <<< "$entry"
+    if [ "$cover" -eq 1 ]; then
+      chosen="$entry"
+      break
+    fi
+    [ -z "$fallback_candidate" ] && fallback_candidate="$entry"
+  done
+
+  if [ -n "$chosen" ]; then
+    IFS="|" read -r ctype cname cpstr cover cpath <<< "$chosen"
+    case "$ctype" in
+      ollama)
+        RICER_AI_BACKEND="ollama"
+        RICER_OLLAMA_MODEL="$cname"
+        log_ok "Local Ollama model initialized: ${cname} (${cpstr} > 4B). Using local AI."
+        ;;
+      llamacpp)
+        RICER_AI_BACKEND="llamacpp"
+        RICER_LLAMACPP_URL="$cpath"
+        log_ok "Local llama.cpp server active: ${cname} (${cpstr} > 4B). Using local AI."
+        ;;
+      llama-file)
+        if command -v llama-server &>/dev/null; then
+          log_dim "Initializing llama-server with ${cname} on port 8080..."
+          llama-server -m "$cpath" --port 8080 >/dev/null 2>&1 &
+          local lpid=$!
+          RICER_SPAWNED_SERVER_PID="$lpid"
+          for _ in {1..15}; do
+            if curl -fsSL --max-time 1 "http://127.0.0.1:8080/v1/models" &>/dev/null; then
+              break
+            fi
+            sleep 0.2
+          done
+          RICER_AI_BACKEND="llamacpp"
+          RICER_LLAMACPP_URL="http://127.0.0.1:8080"
+          log_ok "Local llama.cpp model initialized: ${cname} (${cpstr} > 4B). Using local AI."
+        elif command -v llama-cli &>/dev/null; then
+          RICER_AI_BACKEND="llama-cli"
+          RICER_LLAMA_CLI_MODEL="$cpath"
+          log_ok "Local llama-cli model selected: ${cname} (${cpstr} > 4B). Using local AI."
+        fi
+        ;;
+    esac
+    export RICER_AI_BACKEND RICER_OLLAMA_MODEL RICER_LLAMACPP_URL RICER_LLAMA_CLI_MODEL
+    return 0
+  fi
+
+  # If models were found but none has over 4B parameters
+  if [ -n "$fallback_candidate" ]; then
+    IFS="|" read -r ftype fname fpstr fover fpath <<< "$fallback_candidate"
+    log_warn "Local model '${fname}' has only ${fpstr} parameters (minimum > 4B required for accurate dotfile planning)."
+    log_warn "Your local model is not powerful enough. Falling back to online model..."
+  elif [ "$is_forced_local" = "true" ]; then
+    log_warn "No local models found in Ollama or llama.cpp. Falling back to online model..."
+  fi
+
+  RICER_AI_BACKEND="pollinations"
   export RICER_AI_BACKEND
+  log_dim "AI: Pollinations.ai (cloud, no key)"
 }
 
 # ── URL-encode a string (pure bash, no python required) ───────────────────────
@@ -153,12 +322,45 @@ _ask_pollinations() {
 # ── Ask Ollama ─────────────────────────────────────────────────────────────────
 _ask_ollama() {
   local prompt="$1"
+  local base_url="http://127.0.0.1:11434"
   curl -s --max-time "$AI_TIMEOUT" \
-    http://localhost:11434/api/generate \
+    "${base_url}/api/generate" \
     -H 'Content-Type: application/json' \
     -d "$(jq -n --arg model "$RICER_OLLAMA_MODEL" --arg p "$prompt" \
       '{model:$model, prompt:$p, stream:false, format:"json"}')" 2>/dev/null \
   | jq -r '.response // empty' 2>/dev/null
+}
+
+# ── Ask llama.cpp server ──────────────────────────────────────────────────────
+_ask_llamacpp() {
+  local prompt="$1"
+  local base_url="${RICER_LLAMACPP_URL:-http://127.0.0.1:8080}"
+  local resp=""
+
+  # Try OpenAI-compatible chat completions
+  resp=$(curl -s --max-time "$AI_TIMEOUT" \
+    "${base_url}/v1/chat/completions" \
+    -H 'Content-Type: application/json' \
+    -d "$(jq -n --arg p "$prompt" '{messages:[{role:"user", content:$p}], temperature:0.2}')" 2>/dev/null \
+    | jq -r '.choices[0].message.content // empty' 2>/dev/null || true)
+
+  # Fallback to native /completion endpoint
+  if [ -z "$resp" ]; then
+    resp=$(curl -s --max-time "$AI_TIMEOUT" \
+      "${base_url}/completion" \
+      -H 'Content-Type: application/json' \
+      -d "$(jq -n --arg p "$prompt" '{prompt:$p, temperature:0.2, n_predict:2048}')" 2>/dev/null \
+      | jq -r '.content // empty' 2>/dev/null || true)
+  fi
+
+  echo "$resp"
+}
+
+# ── Ask llama-cli ─────────────────────────────────────────────────────────────
+_ask_llama_cli() {
+  local prompt="$1"
+  local model_path="${RICER_LLAMA_CLI_MODEL}"
+  llama-cli -m "$model_path" -p "$prompt" -n 2048 --temp 0.2 --log-disable 2>/dev/null || true
 }
 
 # ── Main entry: get install plan from AI ──────────────────────────────────────
@@ -167,14 +369,24 @@ get_ai_plan() {
   local prompt response
 
   detect_ai_backend
+
+  # If backend resolved to online (pollinations) but user requested offline mode, fallback to rules
+  if [ "$RICER_AI_BACKEND" != "ollama" ] && [ "$RICER_AI_BACKEND" != "llamacpp" ] && [ "$RICER_AI_BACKEND" != "llama-cli" ]; then
+    if [ "${RICER_OFFLINE:-false}" = "true" ]; then
+      log_info "Offline mode enabled: skipping online AI and using built-in rule engine."
+      return 1
+    fi
+  fi
+
   prompt=$(build_prompt "$repo_dir" "$github_url")
 
-  spinner_start "Asking AI for install plan..."
-  if [ "$RICER_AI_BACKEND" = "ollama" ]; then
-    response=$(_ask_ollama "$prompt")
-  else
-    response=$(_ask_pollinations "$prompt")
-  fi
+  spinner_start "Asking AI (${RICER_AI_BACKEND}) for install plan..."
+  case "$RICER_AI_BACKEND" in
+    ollama)    response=$(_ask_ollama "$prompt") ;;
+    llamacpp)  response=$(_ask_llamacpp "$prompt") ;;
+    llama-cli) response=$(_ask_llama_cli "$prompt") ;;
+    *)         response=$(_ask_pollinations "$prompt") ;;
+  esac
   spinner_stop
 
   # Try to extract a JSON array from the response
