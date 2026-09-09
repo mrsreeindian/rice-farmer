@@ -204,7 +204,7 @@ detect_ai_backend() {
 
   RICER_AI_BACKEND="pollinations"
   export RICER_AI_BACKEND
-  log_dim "AI: Pollinations.ai (cloud, no key)"
+  log_dim "AI: Pollinations.ai (cloud, no key) — use --local or --offline for private repos"
 }
 
 # ── URL-encode a string (pure bash, no python required) ───────────────────────
@@ -298,11 +298,10 @@ Output format:
   { "type": "copy",        "args": ["<src_rel_path>", "~/.config/<app>"], "description": "Install <app> config" },
   { "type": "grub_theme",  "args": ["<dir_with_theme.txt>", "<theme_name>"], "description": "Install GRUB bootloader theme" },
   { "type": "stow",        "args": ["."],           "description": "Stow all dotfiles" },
-  { "type": "symlink",     "args": ["<src>", "<dst>"], "description": "Symlink config" },
-  { "type": "run_cmd",     "args": ["<command>"],   "description": "Run command" }
+  { "type": "symlink",     "args": ["<src>", "<dst>"], "description": "Symlink config" }
 ]
 
-Valid types: install_pkg, copy, symlink, stow, grub_theme, run_cmd.
+Valid types: install_pkg, copy, symlink, stow, grub_theme. (Do NOT use run_cmd; only declarative filesystem steps are permitted).
 Output raw JSON only.
 PROMPT
 }
@@ -408,7 +407,7 @@ get_ai_plan() {
   esac
   spinner_stop
 
-  # Try to extract a JSON array from the response
+  # Try to extract a JSON array from the response, strictly filtering out run_cmd (SEC-01)
   local plan
   plan=$(echo "$response" | jq '
     if type == "array" then .
@@ -417,6 +416,7 @@ get_ai_plan() {
       | if type == "array" then . else null end
     else null
     end
+    | if . != null then map(select(.type != "run_cmd" and (.type | test("^(install_pkg|copy|symlink|stow|grub_theme)$")))) else null end
   ' 2>/dev/null)
 
   if [ -n "$plan" ] && [ "$plan" != "null" ]; then

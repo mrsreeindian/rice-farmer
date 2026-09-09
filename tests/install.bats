@@ -127,3 +127,45 @@ _tmpdir() { mktemp -d; }
   rm -rf "$test_h" "$test_repo"
   HOME="$orig_home"
 }
+
+@test "_is_sensitive_path correctly identifies protected paths" {
+  local orig_home="$HOME"
+  HOME="/home/testuser"
+
+  _is_sensitive_path "/home/testuser/.ssh/authorized_keys"
+  _is_sensitive_path "/home/testuser/.gnupg/secring.gpg"
+  _is_sensitive_path "/home/testuser/.aws/credentials"
+  _is_sensitive_path "/etc/shadow"
+  _is_sensitive_path "/etc/sudoers"
+
+  # Non-sensitive paths must return false
+  ! _is_sensitive_path "/home/testuser/.config/hypr/hyprland.conf"
+  ! _is_sensitive_path "/home/testuser/.config/nvim/init.lua"
+  ! _is_sensitive_path "/home/testuser/.bashrc"
+
+  HOME="$orig_home"
+}
+
+@test "_backup_copy blocks attempts to write to sensitive paths" {
+  local orig_home="$HOME"
+  local test_h=$(_tmpdir)
+  local test_repo=$(_tmpdir)
+
+  HOME="$test_h"
+  mkdir -p "$HOME/.ssh"
+  echo "legit_key" > "$HOME/.ssh/authorized_keys"
+
+  mkdir -p "$test_repo"
+  echo "evil_key" > "$test_repo/evil_key"
+
+  init_backup
+  # Attempting to copy to .ssh must be blocked
+  local status=0
+  _backup_copy "$test_repo" "evil_key" "~/.ssh/authorized_keys" || status=$?
+
+  [ "$status" -ne 0 ]
+  [ "$(cat "$HOME/.ssh/authorized_keys")" = "legit_key" ]
+
+  rm -rf "$test_h" "$test_repo"
+  HOME="$orig_home"
+}

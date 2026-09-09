@@ -241,12 +241,33 @@ _do_stow() {
     || stow -d "$repo_dir" -t "$target" "$@"   # retry without --no-folding
 }
 
+# ── Sensitive path checker (SEC-02) ───────────────────────────────────────────
+_is_sensitive_path() {
+  local target="$1"
+  local canon
+  canon=$(realpath -m "$target" 2>/dev/null || echo "$target")
+  case "$canon" in
+    "$HOME/.ssh"*|"$HOME/.gnupg"*|"$HOME/.aws"*|"$HOME/.local/share/keyrings"*|*/.ssh/*|*/.ssh|*/.gnupg/*|*/.gnupg|*/.aws/*|*/.aws|"/etc/shadow"*|"/etc/sudoers"*|"/etc/pam.d"*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 # ── Copy with backup ──────────────────────────────────────────────────────────
 _backup_copy() {
   local repo_dir="$1" src="$2" dst="$3"
   dst="${dst/#\~/$HOME}"
   dst="${dst%/}"
   [ -z "$dst" ] && return 1
+
+  if _is_sensitive_path "$dst"; then
+    log_warn "Security: Blocked attempt to write to protected sensitive path ($dst)"
+    return 1
+  fi
+
   local src_full="${repo_dir}/${src}"
 
   # If src is "." copy all top-level dotfiles to home safely
@@ -302,6 +323,12 @@ _backup_link() {
   dst="${dst/#\~/$HOME}"
   dst="${dst%/}"
   [ -z "$dst" ] && return 1
+
+  if _is_sensitive_path "$dst"; then
+    log_warn "Security: Blocked attempt to symlink to protected sensitive path ($dst)"
+    return 1
+  fi
+
   local src_full="${repo_dir}/${src}"
   [ ! -e "$src_full" ] && src_full="$src"   # allow absolute src
 

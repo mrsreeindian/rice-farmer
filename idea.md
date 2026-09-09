@@ -116,4 +116,10 @@ A Linux ricing utility that can:
   - Enforces `LC_ALL=C` across all floating-point `awk` calculations for parameter size checks (>4B) and RAM diagnostics.
   - Interactive prompts (`confirm`) emit strictly to `stderr` (`>&2`), preserving pure stdout data streams for JSON pipelines.
 
+### 10. Threat Modeling & DevSecOps Hardening (v1.2.3)
+- **Indirect Prompt Injection Defense (SEC-01)**: The AI engine is strictly confined to declarative filesystem operations (`copy`, `symlink`, `stow`, `install_pkg`, `grub_theme`). `run_cmd` is entirely stripped from AI-generated plans to eliminate prompt injection risks from adversarial `README.md` or repository file trees.
+- **Sensitive Directory Sandboxing (SEC-02)**: Path resolution (`realpath -m`) blocks any attempt to copy or symlink into sensitive user credential directories (`~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.local/share/keyrings`, `/etc/shadow`, `/etc/sudoers`).
+- **Git Option Injection Prevention**: Injects `--` argument delimiters before repository URLs in `git clone` commands to neutralize flag-based injection attacks.
+- **Privacy Notice & Telemetry Awareness (SEC-04)**: Warns users when using the cloud AI backend and recommends `--local` or `--offline` for private or sensitive repositories.
+
 

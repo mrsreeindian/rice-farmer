@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.3] — 2026-09-09
+### Security Audit & Threat Mitigation
+- **Indirect Prompt Injection Defense (SEC-01)**:
+  - Removed `run_cmd` from valid AI output types in `build_prompt`.
+  - Enforced strict output filtering in `get_ai_plan` with `map(select(.type != "run_cmd"))`, ensuring AI can only generate declarative filesystem operations (`copy`, `symlink`, `stow`, `install_pkg`, `grub_theme`).
+- **Sensitive Directory & Credential Protection (SEC-02)**:
+  - Added `_is_sensitive_path` to block `copy` or `symlink` actions targeting security-critical directories (`~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.local/share/keyrings`, `/etc/shadow`, `/etc/sudoers`, `/etc/pam.d`).
+- **Git Option Injection Prevention**:
+  - Added `--` argument delimiter before repository URL in `git clone` to prevent option injection.
+- **Privacy & Telemetry Transparency (SEC-04)**:
+  - Added notification in Pollinations cloud mode advising users to employ `--local` or `--offline` for private or proprietary repositories.
+
 ## [1.2.2] — 2026-09-09
 ### Security & Robustness Hardening
 - **Path Normalization & Deletion Protection**:
