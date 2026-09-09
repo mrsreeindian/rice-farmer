@@ -149,14 +149,38 @@ cmd_install() {
   fi
   log_ok "Cloned to ${tmp_dir}"
 
-  # ── Get install plan ──────────────────────────────────────────────────────
+  # ── Determine installation approach ───────────────────────────────────────
+  log_info "Searching repository files for install script..."
+  local install_script=""
+  install_script=$(find_install_script "$tmp_dir" 2>/dev/null || true)
+
   local plan=""
-  if [ "$RICER_OFFLINE" = "false" ]; then
-    plan=$(get_ai_plan "$tmp_dir" "$GITHUB_URL") || true
-  fi
-  if [ -z "$plan" ] || [ "$plan" = "null" ] || [ "$plan" = "[]" ]; then
-    log_info "Using built-in rule engine..."
-    plan=$(rules_detect_plan "$tmp_dir") || plan="[]"
+  if [ -n "$install_script" ]; then
+    log_ok "Found install script: ${install_script} (skipping AI initialization)"
+    chmod +x "${tmp_dir}/${install_script#./}" 2>/dev/null || true
+
+    # Prepend barebones WM step if system is barebones and target WM is identified
+    local bb_step=""
+    if [ "${RICER_IS_BAREBONES:-false}" = "true" ]; then
+      bb_step=$(rules_barebones_step "$tmp_dir" 2>/dev/null || true)
+    fi
+
+    if [ -n "$bb_step" ] && [ "$bb_step" != "null" ]; then
+      plan=$(jq -cn --argjson b "$bb_step" --arg s "$install_script" \
+        '[$b, {"type":"run_cmd","args":[$s],"description":"Run repo install script"}]')
+    else
+      plan=$(jq -cn --arg s "$install_script" \
+        '[{"type":"run_cmd","args":[$s],"description":"Run repo install script"}]')
+    fi
+  else
+    log_info "No install script found. Initializing AI to plan filesystem changes..."
+    if [ "$RICER_OFFLINE" = "false" ]; then
+      plan=$(get_ai_plan "$tmp_dir" "$GITHUB_URL") || true
+    fi
+    if [ -z "$plan" ] || [ "$plan" = "null" ] || [ "$plan" = "[]" ]; then
+      log_info "Using built-in rule engine..."
+      plan=$(rules_detect_plan "$tmp_dir") || plan="[]"
+    fi
   fi
 
   # ── Pre-Rice & Conflict Analysis ──────────────────────────────────────────

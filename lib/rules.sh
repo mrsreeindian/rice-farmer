@@ -175,6 +175,50 @@ rules_barebones_step() {
   fi
 }
 
+# ── Find install or setup script in repository ────────────────────────────────
+find_install_script() {
+  local repo_dir="$1"
+
+  # 1. Root level common script filenames
+  for s in install.sh setup.sh bootstrap.sh rice.sh deploy.sh install.bash setup.bash; do
+    if [ -f "$repo_dir/$s" ]; then
+      echo "./$s"
+      return 0
+    fi
+  done
+
+  # 2. Root level extensionless scripts (must be regular file and executable)
+  for s in install setup bootstrap; do
+    if [ -f "$repo_dir/$s" ] && [ -x "$repo_dir/$s" ]; then
+      echo "./$s"
+      return 0
+    fi
+  done
+
+  # 3. Known subdirectories
+  for subdir in scripts script bin install setup tools .scripts; do
+    for s in install.sh setup.sh bootstrap.sh rice.sh deploy.sh install.bash setup.bash install setup; do
+      if [ -f "$repo_dir/$subdir/$s" ]; then
+        echo "./$subdir/$s"
+        return 0
+      fi
+    done
+  done
+
+  # 4. Search up to depth 2 for any install/setup/bootstrap/rice script
+  local found
+  found=$(find "$repo_dir" -maxdepth 2 -type f \( \
+    -name "install.sh" -o -name "setup.sh" -o -name "bootstrap.sh" -o -name "rice.sh" -o -name "deploy.sh" \
+  \) 2>/dev/null | head -n 1)
+  if [ -n "$found" ]; then
+    local rel="${found#$repo_dir/}"
+    echo "./$rel"
+    return 0
+  fi
+
+  return 1
+}
+
 # Returns a JSON plan array (printed to stdout) based on repo structure.
 # Falls back gracefully if no known pattern is detected.
 rules_detect_plan() {
@@ -182,14 +226,12 @@ rules_detect_plan() {
   local plan=""
 
   # ── Pattern 1: explicit install/setup/bootstrap script ──────────────────────
-  for script in install.sh setup.sh bootstrap.sh install setup bootstrap rice.sh deploy.sh; do
-    if [ -f "$repo_dir/$script" ]; then
-      log_dim "Rule: found $script"
-      plan=$(jq -cn --arg s "./$script" \
-        '[{"type":"run_cmd","args":[$s],"description":"Run repo install script"}]')
-      break
-    fi
-  done
+  local iscript
+  if iscript=$(find_install_script "$repo_dir") && [ -n "$iscript" ]; then
+    log_dim "Rule: found install script ($iscript)"
+    plan=$(jq -cn --arg s "$iscript" \
+      '[{"type":"run_cmd","args":[$s],"description":"Run repo install script"}]')
+  fi
 
   # ── Pattern 1b: GRUB bootloader theme ─────────────────────────────────────────
   if [ -z "$plan" ]; then

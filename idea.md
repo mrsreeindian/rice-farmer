@@ -56,9 +56,11 @@ A Linux ricing utility that can:
   - Automatically identifies tools and dependencies required by the incoming rice that are missing on the host
   - Injects native package manager installation steps into the plan automatically
 
-### 4. Scriptless Dotfile Repositories
-- Handles repositories that lack any install or setup script.
-- Intelligently maps folders and configs:
+### 4. File-First Install Flow & AI Filesystem Engine
+- **Search Files First**: Searches the repository for an install script (`install.sh`, `setup.sh`, `bootstrap.sh`, `rice.sh`, `deploy.sh`, etc., across root and common script directories) before doing anything else.
+- **No AI Initialization on Script Discovery**: If an install script is found, AI is not initialized, avoiding unnecessary network latency or local model queries; the install script is configured to execute directly.
+- **AI Exclusively for Filesystem Moves & Modifications**: AI is only initialized when no install script exists in the repository. Its role is strictly to inspect the configuration tree and generate filesystem operations (`copy`, `symlink`, `stow`, `grub_theme`) to deploy configs into `~/.config/` and `$HOME`.
+- **Scriptless Dotfile Repositories**: Intelligently handles repositories that lack any install or setup script:
   - `.config/` directories into `~/.config/`
   - Root app folders (`hypr/`, `nvim/`, `waybar/`, etc.) into `~/.config/<app>`
   - Root dotfiles (`.bashrc`, `.zshrc`, `.tmux.conf`, etc.) into `~/`

@@ -66,7 +66,8 @@ Analyze the repository structure and output ONLY a raw JSON array of install ste
 No markdown fences, no code blocks, no chat explanation, just the raw JSON array.
 
 CRITICAL INSTRUCTIONS:
-1. EVEN IF THERE IS NO INSTALL SCRIPT (no install.sh, setup.sh, Makefile, etc.), YOU MUST STILL INSTALL AND CONFIGURE THE RICE:
+1. NO INSTALL SCRIPT EXISTS IN THIS REPOSITORY (no install.sh, setup.sh, bootstrap.sh, etc.).
+   YOU ARE SPECIFICALLY CALLED TO MOVE AND MODIFY THE FILESYSTEM to deploy the dotfiles:
    - Identify configuration folders (e.g., nvim, hypr, sway, i3, waybar, rofi, kitty, alacritty, polybar, fastfetch, dunst, fish, zsh, tmux, etc.).
    - If directories belong in ~/.config/, map each folder with "copy": ["<folder>", "~/.config/<folder>"] or "symlink".
    - If the repository contains a GRUB theme (theme.txt, background images, fonts), use {"type":"grub_theme","args":["<theme_dir_or_.>","<theme_name>"],"description":"Install GRUB bootloader theme"}.

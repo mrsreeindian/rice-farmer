@@ -7,6 +7,10 @@
   - `ricer update`: pulls the latest official GitHub release only (`/releases/latest`), preventing inadvertent edge/beta upgrades and version regressions.
   - `ricer update --beta`: pulls the latest git tag (`/tags`) directly from GitHub, allowing users to update to latest tagged pre-release builds.
   - Pinned raw file asset downloads using the resolved tag/release name.
+- File-first script search & AI filesystem engine:
+  - Repository files are searched for an install/setup script first before any AI action.
+  - Skips AI initialization completely when an install script is detected, eliminating unnecessary network latency or model loading.
+  - Initializes AI exclusively to inspect configs and generate filesystem operations (`copy`, `symlink`, `stow`, `grub_theme`) when no install script exists.
 
 ## [1.1.0] — 2026-09-08
 ### Added

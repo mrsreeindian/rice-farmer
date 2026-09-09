@@ -76,13 +76,14 @@ ricer uninstall
 ```
 1. detect    -> reads /proc, /etc/os-release, $XDG_CURRENT_DESKTOP
 2. clone     -> git clone --depth=1 <url> /tmp/ricer-XXXX/
-3. AI plan   -> AI analyzes repo tree + configs, returns JSON steps
-4. confirm   -> shows you the plan, asks for approval
-5. execute   -> backup -> install deps -> stow / copy / symlink configs
-6. cleanup   -> rm -rf /tmp/ricer-XXXX/
+3. search    -> searches repo files for install script (skips AI if found)
+4. AI plan   -> if no script, initializes AI to plan filesystem moves & configs
+5. confirm   -> shows you the plan, asks for approval
+6. execute   -> backup -> install deps -> stow / copy / symlink / run script
+7. cleanup   -> rm -rf /tmp/ricer-XXXX/
 ```
 
-The AI step uses a lightweight cloud AI endpoint — no account, no API key, and no heavy local model required. If the AI call fails or you are running offline, the built-in rule engine takes over automatically to handle common dotfile structures and scriptless repositories.
+Rice Farmer searches repository files first: if an install script (`install.sh`, `setup.sh`, etc.) is present, it skips AI initialization entirely and configures execution of the script. AI is initialized and used only when no install script exists, specifically to inspect configurations and generate filesystem migration plans (copying to `~/.config/`, `$HOME`, stow, or symlinks). If AI is unreachable or `--offline` is set, the offline rule engine handles detection.
 
 ---
 
