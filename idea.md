@@ -106,4 +106,14 @@ A Linux ricing utility that can:
 - **Orphan package pruning**: `--clean-orphans` flag (aliases: `--remove-orphans`, `--prune-orphans`) to automatically identify and clean up unneeded dependencies and orphaned packages across all supported package managers (`pacman -Rns $(pacman -Qtdq)`, `apt autoremove`, `dnf autoremove`, `emerge --depclean`, etc.) after rice installation.
 - CLI flags: `--dry-run`, `--local`, `--offline`, `--no-backup`, `--clean-orphans`, `--beta`, `--model`, `--version`, `--help`.
 
+### 9. Security, Data Safety & Robustness Hardening (v1.2.2)
+- **Path Normalization & Deletion Guards**: Target paths are normalized with trailing-slash removal (`${dst%/}`); strict safety invariants prevent `rm -rf` from ever executing against `$HOME`, `$HOME/.config`, or `/` under any circumstances (including `~` or relative dotfile copies).
+- **Safe Command Execution**: Commands run via `_run_in_repo` preserve distinct argument boundaries, preventing command flattening and shell injection vulnerabilities. Discovered install scripts are automatically verified and given executable permissions (`chmod +x`) prior to invocation.
+- **Port Collision & Daemon Isolation**: Background AI server spawning (Ollama on port `11434` or llama-server on port `8080`) incorporates non-blocking socket checks (`_port_in_use`) to avoid port collisions with existing services.
+- **Defensive Shell Standards**:
+  - Array-based orphan package pruning eliminates unquoted word-splitting risks (ShellCheck SC2086).
+  - CPU and GPU model parsing utilizes POSIX regex trimming (`sed -E`) to prevent `xargs` crashes on unmatched quotes.
+  - Enforces `LC_ALL=C` across all floating-point `awk` calculations for parameter size checks (>4B) and RAM diagnostics.
+  - Interactive prompts (`confirm`) emit strictly to `stderr` (`>&2`), preserving pure stdout data streams for JSON pipelines.
+
 
