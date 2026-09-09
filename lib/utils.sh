@@ -77,7 +77,7 @@ print_system_table() {
 confirm() {
   local prompt="${1:-Proceed?}" default="${2:-n}" yn_hint
   [ "$default" = "y" ] && yn_hint="[Y/n]" || yn_hint="[y/N]"
-  echo -en "${BOLD}${prompt} ${yn_hint}${RESET} "
+  echo -en "${BOLD}${prompt} ${yn_hint}${RESET} " >&2
   read -r ans
   case "${ans:-$default}" in
     y|Y|yes|YES) return 0 ;;

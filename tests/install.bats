@@ -102,3 +102,28 @@ _tmpdir() { mktemp -d; }
   rm -rf "$test_h" "$test_repo"
   HOME="$orig_home"
 }
+
+@test "_backup_copy normalizes trailing slashes and never deletes HOME" {
+  local orig_home="$HOME"
+  local test_h=$(_tmpdir)
+  local test_repo=$(_tmpdir)
+
+  HOME="$test_h"
+  mkdir -p "$HOME/keep_this_dir"
+  echo "keep_me" > "$HOME/keep_this_dir/important.txt"
+  echo "old_bashrc" > "$HOME/.bashrc"
+
+  touch "$test_repo/.bashrc"
+  echo "new_bashrc" > "$test_repo/.bashrc"
+
+  init_backup
+  # Calling with trailing slash "~/" must not delete HOME or other dirs
+  _backup_copy "$test_repo" "." "~/"
+
+  [ -d "$HOME/keep_this_dir" ]
+  [ -f "$HOME/keep_this_dir/important.txt" ]
+  [ "$(cat "$HOME/.bashrc")" = "new_bashrc" ]
+
+  rm -rf "$test_h" "$test_repo"
+  HOME="$orig_home"
+}

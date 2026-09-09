@@ -104,15 +104,15 @@ detect_system() {
   fi
 
   # ── Hardware (read from /proc — no extra tools) ──────────────────────────────
-  RICER_CPU=$(grep -m1 -Ei 'model name|hardware|model' /proc/cpuinfo 2>/dev/null \
-              | cut -d: -f2 | xargs || echo "unknown")
-  RICER_RAM=$(awk '/MemTotal/{printf "%.0f MB", $2/1024}' /proc/meminfo 2>/dev/null \
+  RICER_CPU=$(grep -m1 -Ei '^[[:space:]]*(model name|hardware|cpu model)[[:space:]]*:' /proc/cpuinfo 2>/dev/null \
+              | cut -d: -f2 | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' || echo "unknown")
+  RICER_RAM=$(LC_ALL=C awk '/MemTotal/{printf "%.0f MB", $2/1024}' /proc/meminfo 2>/dev/null \
               || echo "unknown")
   # GPU: try lspci first (lightweight), fall back gracefully
   if command -v lspci &>/dev/null; then
     RICER_GPU=$(lspci 2>/dev/null \
                 | grep -Ei 'vga|3d controller|display controller' \
-                | head -1 | cut -d: -f3 | xargs || echo "unknown")
+                | head -1 | cut -d: -f3 | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' || echo "unknown")
   else
     RICER_GPU="unknown (lspci not installed)"
   fi

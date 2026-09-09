@@ -353,7 +353,7 @@ rules_detect_plan() {
     if [ "$dotfiles" -ge 2 ]; then
       log_dim "Rule: dotfiles at repo root"
       plan=$(jq -cn '[
-        {"type":"copy","args":[".","~/"],"description":"Copy dotfiles to home directory"}
+        {"type":"copy","args":[".","~"],"description":"Copy dotfiles to home directory"}
       ]')
     fi
   fi

@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.2.2] — 2026-09-09
+### Security & Robustness Hardening
+- **Path Normalization & Deletion Protection**:
+  - Normalized target destination paths by stripping trailing slashes in `_backup_copy` and `_backup_link`.
+  - Added strict guard condition prohibiting `rm -rf` from ever executing on `$HOME`, `$HOME/.config`, or `/`.
+  - Fixed dotfile destination path in Pattern 6 rule from `"~/"` to `"~"`.
+- **Safe Command Execution**:
+  - Hardened `_run_in_repo` against argument flattening and command injection; preserved array boundaries when executing commands.
+  - Automatically marked non-executable install scripts as executable (`chmod +x`) prior to execution.
+- **Port Collision & Daemon Isolation**:
+  - Added `_port_in_use` network verification before spawning background Ollama (port `11434`) or llama-server (port `8080`) processes.
+- **Defensive Shell & Clean Streams**:
+  - Handled orphan packages removal (`pacman -Rns`) via typed array expansion, eliminating SC2086 unquoted variable expansion.
+  - Safely sanitized CPU and GPU model name string trimming with `sed -E` to prevent `xargs` crashes on unmatched quotes.
+  - Enforced `LC_ALL=C` across all floating-point `awk` comparisons for parameter evaluation (>4B check) and RAM calculations.
+  - Redirected interactive confirmation prompt (`confirm`) to `stderr` to maintain strict stdout purity.
+
 ## [1.2.1] — 2026-09-09
 ### Fixed & Improved
 - **Security & Safety Audit Fixes**:

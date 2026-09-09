@@ -123,8 +123,11 @@ clean_orphan_packages() {
       orphans=$(pacman -Qtdq 2>/dev/null || true)
       if [ -n "$orphans" ]; then
         log_info "Removing orphan packages (pacman): $orphans"
-        # shellcheck disable=SC2086
-        _priv pacman -Rns --noconfirm $orphans
+        local -a orphan_arr=()
+        read -r -a orphan_arr <<< "$orphans"
+        if [ ${#orphan_arr[@]} -gt 0 ]; then
+          _priv pacman -Rns --noconfirm "${orphan_arr[@]}"
+        fi
         log_ok "Orphan packages removed successfully."
       else
         log_ok "No orphan packages found."
@@ -242,6 +245,8 @@ _do_stow() {
 _backup_copy() {
   local repo_dir="$1" src="$2" dst="$3"
   dst="${dst/#\~/$HOME}"
+  dst="${dst%/}"
+  [ -z "$dst" ] && return 1
   local src_full="${repo_dir}/${src}"
 
   # If src is "." copy all top-level dotfiles to home safely
@@ -276,12 +281,15 @@ _backup_copy() {
   fi
 
   mkdir -p "$(dirname "$dst")"
-  if [ "$dst" = "$HOME/.config" ] || [ "$dst" = "$HOME" ]; then
-    # Never rm -rf ~/.config or $HOME
+  if [ "$dst" = "$HOME/.config" ] || [ "$dst" = "$HOME" ] || [ "$dst" = "/" ]; then
+    # Never rm -rf ~/.config, $HOME, or /
+    mkdir -p "$dst"
     cp -r "$src_full"/. "$dst/"
   elif [ -d "$src_full" ]; then
-    # If target directory already exists, ensure clean update
-    rm -rf "$dst" 2>/dev/null || true
+    # If target directory already exists, ensure clean update (safety guard against empty or root/home dst)
+    if [ "$dst" != "/" ] && [ "$dst" != "$HOME" ] && [ "$dst" != "$HOME/.config" ]; then
+      rm -rf "$dst" 2>/dev/null || true
+    fi
     cp -r "$src_full" "$dst"
   else
     cp -r "$src_full" "$dst"
@@ -292,6 +300,8 @@ _backup_copy() {
 _backup_link() {
   local repo_dir="$1" src="$2" dst="$3"
   dst="${dst/#\~/$HOME}"
+  dst="${dst%/}"
+  [ -z "$dst" ] && return 1
   local src_full="${repo_dir}/${src}"
   [ ! -e "$src_full" ] && src_full="$src"   # allow absolute src
 
@@ -308,7 +318,9 @@ _backup_link() {
         log_dim "Backed up: $dst -> $RICER_BACKUP_DIR"
       fi
     fi
-    rm -rf "$dst"   # remove existing link or file/directory
+    if [ "$dst" != "/" ] && [ "$dst" != "$HOME" ] && [ "$dst" != "$HOME/.config" ]; then
+      rm -rf "$dst"   # remove existing link or file/directory
+    fi
   fi
 
   mkdir -p "$(dirname "$dst")"
@@ -320,7 +332,15 @@ _backup_link() {
 _run_in_repo() {
   local repo_dir="$1"; shift
   log_dim "Running: $* (in $repo_dir)"
-  (cd "$repo_dir" && bash -c "$*")
+  if [ $# -eq 1 ]; then
+    local cmd="$1"
+    if [ -f "$repo_dir/$cmd" ] && [ ! -x "$repo_dir/$cmd" ]; then
+      chmod +x "$repo_dir/$cmd" 2>/dev/null || true
+    fi
+    (cd "$repo_dir" && bash -c "$cmd")
+  else
+    (cd "$repo_dir" && "$@")
+  fi
 }
 
 # ── Install GRUB Theme ────────────────────────────────────────────────────────

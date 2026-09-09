@@ -9,6 +9,12 @@ RICER_LLAMACPP_URL=""
 RICER_LLAMA_CLI_MODEL=""
 RICER_SPAWNED_SERVER_PID=""
 
+# ── Network helper ─────────────────────────────────────────────────────────────
+_port_in_use() {
+  local port="$1"
+  (exec 3<>/dev/tcp/127.0.0.1/"$port") 2>/dev/null && exec 3>&- && return 0 || return 1
+}
+
 # ── Parameter size evaluation (>4B check) ──────────────────────────────────────
 _is_over_4b() {
   local s="${1,,}"
@@ -18,16 +24,16 @@ _is_over_4b() {
   fi
   if [[ "$s" =~ ([0-9]+(\.[0-9]+)?)[[:space:]]*b ]]; then
     local num="${BASH_REMATCH[1]}"
-    awk -v n="$num" 'BEGIN { print (n > 4.0) ? 1 : 0 }'
+    LC_ALL=C awk -v n="$num" 'BEGIN { print (n > 4.0) ? 1 : 0 }'
     return 0
   fi
   if [[ "$s" =~ [:_-]([0-9]+(\.[0-9]+)?)[a-z]* ]]; then
     local num="${BASH_REMATCH[1]}"
-    awk -v n="$num" 'BEGIN { print (n > 4.0) ? 1 : 0 }'
+    LC_ALL=C awk -v n="$num" 'BEGIN { print (n > 4.0) ? 1 : 0 }'
     return 0
   fi
   if [[ "$s" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
-    awk -v n="$s" 'BEGIN { print (n > 4.0) ? 1 : 0 }'
+    LC_ALL=C awk -v n="$s" 'BEGIN { print (n > 4.0) ? 1 : 0 }'
     return 0
   fi
   echo 0
@@ -69,7 +75,7 @@ detect_ai_backend() {
 
   if ollama_tags=$(curl -fsSL --max-time 1 "http://127.0.0.1:11434/api/tags" 2>/dev/null); then
     ollama_running=true
-  elif command -v ollama &>/dev/null; then
+  elif command -v ollama &>/dev/null && ! _port_in_use 11434; then
     log_dim "Starting local Ollama server to inspect models..."
     ollama serve >/dev/null 2>&1 &
     local opid=$!
@@ -161,7 +167,7 @@ detect_ai_backend() {
         log_ok "Local llama.cpp server active: ${cname} (${cpstr} > 4B). Using local AI."
         ;;
       llama-file)
-        if command -v llama-server &>/dev/null; then
+        if command -v llama-server &>/dev/null && ! _port_in_use 8080; then
           log_dim "Initializing llama-server with ${cname} on port 8080..."
           llama-server -m "$cpath" --port 8080 >/dev/null 2>&1 &
           local lpid=$!
