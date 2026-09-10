@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.3.0] — 2026-09-10
+### Desktop Configuration Repackaging & Format Support
+- **Desktop Repack Subcommand (`ricer repack`)**:
+  - Repacks active desktop environment, keybinds, widgets, bars, notifications, terminals, and configurations into a shareable `.zip` archive.
+  - Automatically identifies and captures active desktop wallpaper across multiple wallpaper engines (`swww`, `hyprpaper`, `feh`, `swaybg`, pre-rice specific paths, and Pictures directory fallback).
+  - Generates a standalone, self-contained `install.sh` in the root of the archive, enabling direct one-command deployment or installation via `ricer install <zip>`.
+  - Generates a structured `rice.json` manifest recording captured configs, format, window manager, wallpaper, timestamp, and metadata.
+- **Individual Format Implementations**:
+  - **Omarchy**: Captures Omarchy stack (`omarchy`, `hypr`, `waybar`, `mako`, `foot`, `kitty`, `fastfetch`, `cava`, `btop`, `alacritty`, `ghostty`) and embeds Omarchy ecosystem restoration hooks.
+  - **Caelestia**: Captures Caelestia desktop stack (`caelestia`, `ags`, `hypr`, `waybar`, `rofi`, `wofi`, `dunst`, `swaync`, `kitty`, `alacritty`, `fastfetch`) and embeds AGS widget restart hooks.
+  - **Garuda**: Captures Garuda Linux desktop stack (`garuda`, `hypr`, `waybar`, `fish`, `swaync`, `dunst`, `alacritty`, `kitty`, `fastfetch`, `starship.toml`) and embeds Garuda environment hooks.
+  - **Generic / Auto-detection**: Automatically resolves format via active system profiles (`detect_pre_rice`) or falls back to common compositors (`hypr`, `sway`, `i3`, `bspwm`, `polybar`, `waybar`, `rofi`, `dunst`, etc.).
+- **Security & Hygiene in Packaging**:
+  - Employs streaming tar exclusion filters to strip `.git` directories, `.github` workflows, socket files (`*.sock`), log files (`*.log`), caches (`*.cache`, `Cache*`), and private credential/key files (`*.key`, `*.pem`, `*token*`, `*secret*`, `*credential*`).
+  - Native `zip` utility support with pure Python 3 / Python zipfile fallback for minimal environments.
+
 ## [1.2.3] — 2026-09-09
 ### Security Audit & Threat Mitigation
 - **Indirect Prompt Injection Defense (SEC-01)**:

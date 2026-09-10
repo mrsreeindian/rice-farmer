@@ -34,7 +34,7 @@ curl -fsSL --max-time 30 "${REPO_RAW}/ricer" -o "${BIN_DIR}/ricer"
 chmod +x "${BIN_DIR}/ricer"
 
 info "Downloading library files..."
-for lib in utils detect prerice ai rules install; do
+for lib in utils detect prerice ai rules install repack; do
   curl -fsSL --max-time 30 "${REPO_RAW}/lib/${lib}.sh" -o "${LIB_DIR}/${lib}.sh"
 done
 

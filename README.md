@@ -2,13 +2,14 @@
 
 > Install any Linux rice/dotfiles from a GitHub URL — in one command.
 
-[![version](https://img.shields.io/badge/version-1.2.3-blue)](#)
+[![version](https://img.shields.io/badge/version-1.3.0-blue)](#)
 [![license](https://img.shields.io/badge/license-MIT-green)](#)
 [![shell](https://img.shields.io/badge/shell-bash-orange)](#)
 
 **Rice Farmer** is a lightweight (~30 KB), pure-Bash tool that:
 - Auto-detects your distro (Ubuntu/Debian, Red Hat/Fedora/CentOS, Arch, Gentoo, openSUSE), WM, package managers, hardware, and bootloader (GRUB)
 - **Pre-Rice & Desktop Conflict Management**: Separate profiles for **Omarchy**, **CachyOS**, **Garuda**, **Omakub**, and pre-rices (e.g. **Caelestia**, **Hyprdots**); warns of conflicts, automatically isolates/quarantines incompatible configs, stops colliding daemons, and installs missing dependencies
+- **Desktop Rice Repackaging (`ricer repack`)**: Repack your active system configuration—including active wallpaper, keybinds, widgets, bars, and app configs—into a standalone, shareable `.zip` archive with pre-rice hooks for **Omarchy**, **Caelestia**, **Garuda**, and generic window managers
 - **Barebones Arch & Gentoo support**: Automatically detects minimal/TTY-only systems without a GUI and installs the required DE/WM stack, display servers/compositors, audio (`pipewire`), portals, waybar, terminals, and fonts
 - Uses a free cloud AI model (no API key required) to intelligently install any rice, dotfiles, or GRUB bootloader themes
 - Backs up your existing configs (including `/etc/default/grub`) before touching anything
@@ -42,6 +43,14 @@ ricer detect
 # Install a rice from GitHub
 ricer install https://github.com/username/dotfiles
 
+# Repack your current desktop config, active wallpaper, widgets, and keybinds into a zip
+ricer repack
+
+# Repack into a custom zip filename with a specific format profile
+ricer repack my-rice.zip --format omarchy
+ricer repack caelestia-rice.zip --format caelestia
+ricer repack garuda-rice.zip --format garuda
+
 # Preview the plan without making changes
 ricer install https://github.com/username/dotfiles --dry-run
 
@@ -62,6 +71,7 @@ ricer uninstall
 
 | Flag | Description |
 |---|---|
+| `--format <name>` | Rice profile for repack (`omarchy`, `caelestia`, `garuda`, `generic`) |
 | `--dry-run` | Show the plan, don't execute |
 | `--local` | Search for and use local Ollama / llama.cpp models (>4B params) |
 | `--no-backup` | Skip config backup (use with care) |
