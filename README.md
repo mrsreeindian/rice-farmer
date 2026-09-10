@@ -2,7 +2,7 @@
 
 > Install any Linux rice/dotfiles from a GitHub URL — in one command.
 
-[![version](https://img.shields.io/badge/version-1.3.1-blue)](#)
+[![version](https://img.shields.io/badge/version-1.3.2-blue)](#)
 [![license](https://img.shields.io/badge/license-MIT-green)](#)
 [![shell](https://img.shields.io/badge/shell-bash-orange)](#)
 

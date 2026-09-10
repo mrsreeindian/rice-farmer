@@ -160,5 +160,12 @@ A Linux ricing utility that can:
   - Supports declarative `systemd_service` step type in plans to enable and manage user services (`hypridle`, `swww`, `swaync`, `mpd`, etc.).
   - `ricer repack` captures active user services in `~/.config/systemd/user/` and includes automatic daemon reloading in the generated standalone installer.
 
+### 13. Update Channels Modernization & Downloads Repack Location (v1.3.2)
+- **`--latest` Channel Flag**: Pulls the newest git tag from GitHub (`/tags`), enabling users and developers to test preview or edge builds before formal GitHub releases are cut.
+- **`--beta` Channel Filter**: Re-purposed to specifically query and install tags named like `v1.x.y Beta` or containing `beta` in the tag name.
+- **URL-Encoded Remote Asset Retrieval**: Automatically URL-encodes tags with whitespace (e.g. `v1.x.y%20Beta`) to guarantee curl downloads from GitHub raw content succeed seamlessly.
+- **Downloads Folder Repack Default**: Automatically resolves repack destination to the user's standard Downloads directory (`$XDG_DOWNLOAD_DIR` or `~/Downloads`), ensuring generated zip archives are immediately accessible in file managers and browsers.
+
+
 
 
