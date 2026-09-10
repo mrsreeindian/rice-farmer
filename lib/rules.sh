@@ -362,11 +362,12 @@ rules_detect_plan() {
   if [ -z "$plan" ] && [ -d "$repo_dir/.config" ]; then
     log_dim "Rule: .config directory detected"
     local config_items=()
-    while IFS= read -r -d '' cdir; do
+    while IFS= read -r -d '' citem; do
       local bname
-      bname=$(basename "$cdir")
+      bname=$(basename "$citem")
+      [ "$bname" = "." ] || [ "$bname" = ".." ] && continue
       config_items+=("$bname")
-    done < <(find "$repo_dir/.config" -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null)
+    done < <(find "$repo_dir/.config" -mindepth 1 -maxdepth 1 ! -name '.git' -print0 2>/dev/null)
 
     if [ ${#config_items[@]} -gt 0 ]; then
       local items_json
@@ -380,6 +381,37 @@ rules_detect_plan() {
       ')
     else
       plan=$(jq -cn '[{"type":"copy","args":[".config","~/.config"],"description":"Copy .config into home"}]')
+    fi
+
+    # Also capture home dotfiles if home/ folder exists (from repack packages)
+    if [ -d "$repo_dir/home" ]; then
+      local home_items=()
+      while IFS= read -r -d '' hitem; do
+        local bname
+        bname=$(basename "$hitem")
+        [ "$bname" = "." ] || [ "$bname" = ".." ] && continue
+        home_items+=("$bname")
+      done < <(find "$repo_dir/home" -mindepth 1 -maxdepth 1 ! -name '.git' -print0 2>/dev/null)
+      if [ ${#home_items[@]} -gt 0 ]; then
+        local hitems_json
+        hitems_json=$(printf '%s\n' "${home_items[@]}" | jq -R . | jq -s .)
+        local home_steps
+        home_steps=$(jq -cn --argjson items "$hitems_json" '
+          $items | map({
+            "type": "copy",
+            "args": [("home/" + .), ("~/" + .)],
+            "description": ("Install ~/" + .)
+          })
+        ')
+        plan=$(jq -c --argjson h "$home_steps" '. + $h' <<< "$plan")
+      fi
+    fi
+
+    # Also capture wallpapers if wallpapers/ folder exists
+    if [ -d "$repo_dir/wallpapers" ]; then
+      local wp_step
+      wp_step=$(jq -cn '[{"type":"copy","args":["wallpapers","~/Pictures/Wallpapers"],"description":"Install wallpapers to ~/Pictures/Wallpapers"}]')
+      plan=$(jq -c --argjson w "$wp_step" '. + $w' <<< "$plan")
     fi
   fi
 
@@ -400,7 +432,7 @@ rules_detect_plan() {
 
   # ── Pattern 7: app config folders at repo root (e.g. hypr, nvim, waybar, kitty) ───
   if [ -z "$plan" ]; then
-    local common_apps=(hypr hyprland sway i3 waybar rofi wofi kitty alacritty foot wezterm \
+    local common_apps=(hypr hyprland sway i3 waybar rofi wofi kitty alacritty foot ghostty wezterm \
                        nvim neovim fish zsh tmux dunst mako polybar fastfetch btop cava systemd)
     local found_app_pairs=()
     for app in "${common_apps[@]}"; do

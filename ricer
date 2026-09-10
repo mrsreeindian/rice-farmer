@@ -51,11 +51,11 @@ RICER_REPACK_OUTPUT=""
 usage() {
   cat <<HELP
 
-${BOLD}Rice Farmer${RESET} v${VERSION} — Install any Linux rice from a GitHub URL
+${BOLD}Rice Farmer${RESET} v${VERSION} — Install and repack Linux rices from GitHub or zip packages
 
 ${BOLD}USAGE${RESET}
   ricer detect                  Show detected system info
-  ricer install <github-url>    Install a rice/dotfile repo
+  ricer install <url-or-zip>    Install a rice from a GitHub URL, directory, or zip archive
   ricer repack [output.zip]     Repack desktop configs, wallpaper, keybinds, and widgets to Downloads
   ricer restore                 Restore the latest config backup
   ricer update [--latest]       Check for updates and pull latest release (or latest git tag)
@@ -65,7 +65,7 @@ ${BOLD}USAGE${RESET}
   ricer help                    Show this help
 
 ${BOLD}FLAGS${RESET}
-  --format <name>  Rice format for repack (omarchy, caelestia, garuda, generic)
+  --format <name>  Rice format for repack (omarchy, caelestia, garuda, cachyos, generic)
   --dry-run        Show the install plan without executing
   --local          Search for local models in Ollama / llama.cpp (>4B params)
   --no-backup      Skip config backup (dangerous!)
@@ -82,9 +82,12 @@ ${BOLD}EXAMPLES${RESET}
   ricer install https://github.com/user/hyprland-dots --local
   ricer install https://github.com/user/hyprland-dots --dry-run
   ricer install https://github.com/user/hyprland-dots --clean-orphans
+  ricer install ~/Downloads/rice-repack-omarchy.zip
   ricer repack
   ricer repack my-rice.zip --format omarchy
   ricer repack caelestia-rice.zip --format caelestia
+  ricer repack garuda-rice.zip --format garuda
+  ricer repack cachyos-rice.zip --format cachyos
   ricer restore
   ricer update
   ricer update --latest
@@ -110,7 +113,7 @@ while [[ $# -gt 0 ]]; do
     --beta)           RICER_UPDATE_BETA=true; shift ;;
     --latest)         RICER_UPDATE_LATEST=true; shift ;;
     --format)
-      [ $# -ge 2 ] || { log_error "--format requires an argument (omarchy, caelestia, garuda, generic)"; exit 1; }
+      [ $# -ge 2 ] || { log_error "--format requires an argument (omarchy, caelestia, garuda, cachyos, generic)"; exit 1; }
       RICER_REPACK_FORMAT="$2"; shift 2 ;;
     --model)
       [ $# -ge 2 ] || { log_error "--model requires an argument"; exit 1; }
@@ -167,29 +170,62 @@ cmd_detect() {
 
 # ── Subcommand: install ───────────────────────────────────────────────────────
 cmd_install() {
-  [ -z "$GITHUB_URL" ] && { log_error "Please provide a GitHub URL."; usage; exit 1; }
+  [ -z "$GITHUB_URL" ] && { log_error "Please provide a repository URL or rice package path (.zip)."; usage; exit 1; }
 
   detect_system
   print_system_table
 
-  # Validate URL looks like a GitHub repo
-  if [[ ! "$GITHUB_URL" =~ ^https?://github\.com/[^/]+/[^/]+ ]]; then
-    log_warn "URL doesn't look like a GitHub repo. Proceeding anyway..."
-  fi
+  local target_input="${GITHUB_URL/#\~/$HOME}"
 
-  # ── Clone repo ────────────────────────────────────────────────────────────
+  # ── Fetch / Extract Rice Package ──────────────────────────────────────────
   local tmp_dir
   tmp_dir=$(mktemp -d /tmp/ricer-XXXXXXXXXX)
   export RICER_SERVER_PID_FILE="${tmp_dir}/server.pid"
   # Always clean up temp dir and any spawned local AI server on exit
   trap 'spinner_stop; [ -f "${tmp_dir}/server.pid" ] && kill "$(cat "${tmp_dir}/server.pid")" 2>/dev/null || true; [ -n "${RICER_SPAWNED_SERVER_PID:-}" ] && kill "${RICER_SPAWNED_SERVER_PID}" 2>/dev/null || true; [ -n "${tmp_dir:-}" ] && rm -rf "${tmp_dir}" && log_dim "Cleaned up ${tmp_dir}"' EXIT
 
-  log_info "Cloning ${GITHUB_URL}..."
-  if ! GIT_TERMINAL_PROMPT=0 \
-       git clone --depth=1 --quiet -- "$GITHUB_URL" "$tmp_dir" 2>&1; then
-    die "Failed to clone repository. Ensure the URL is correct and the repo is public."
+  if [ -f "$target_input" ] && [[ "$target_input" =~ \.zip$ ]]; then
+    log_info "Extracting local rice package: ${target_input}..."
+    if command -v unzip &>/dev/null; then
+      unzip -q -o "$target_input" -d "$tmp_dir"
+    elif command -v python3 &>/dev/null; then
+      python3 -c "import zipfile, sys; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "$target_input" "$tmp_dir"
+    elif command -v python &>/dev/null; then
+      python -c "import zipfile, sys; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "$target_input" "$tmp_dir"
+    else
+      die "Cannot extract zip package: neither 'unzip' nor 'python3' is installed."
+    fi
+    log_ok "Extracted package to ${tmp_dir}"
+  elif [ -d "$target_input" ]; then
+    log_info "Copying local rice directory: ${target_input}..."
+    cp -rL "${target_input}/." "$tmp_dir/"
+    log_ok "Copied directory to ${tmp_dir}"
+  elif [[ "$GITHUB_URL" =~ ^https?://.*\.zip$ ]]; then
+    log_info "Downloading rice archive: ${GITHUB_URL}..."
+    curl -fsSL "$GITHUB_URL" -o "${tmp_dir}/rice.zip"
+    if command -v unzip &>/dev/null; then
+      unzip -q -o "${tmp_dir}/rice.zip" -d "$tmp_dir"
+    elif command -v python3 &>/dev/null; then
+      python3 -c "import zipfile, sys; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "${tmp_dir}/rice.zip" "$tmp_dir"
+    elif command -v python &>/dev/null; then
+      python -c "import zipfile, sys; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "${tmp_dir}/rice.zip" "$tmp_dir"
+    else
+      rm -f "${tmp_dir}/rice.zip"
+      die "Cannot extract downloaded zip package: neither 'unzip' nor 'python3' is installed."
+    fi
+    rm -f "${tmp_dir}/rice.zip"
+    log_ok "Extracted package to ${tmp_dir}"
+  else
+    if [[ ! "$GITHUB_URL" =~ ^https?://github\.com/[^/]+/[^/]+ ]]; then
+      log_warn "URL doesn't look like a GitHub repo. Proceeding anyway..."
+    fi
+    log_info "Cloning ${GITHUB_URL}..."
+    if ! GIT_TERMINAL_PROMPT=0 \
+         git clone --depth=1 --quiet -- "$GITHUB_URL" "$tmp_dir" 2>&1; then
+      die "Failed to clone repository. Ensure the URL is correct and the repo is public."
+    fi
+    log_ok "Cloned to ${tmp_dir}"
   fi
-  log_ok "Cloned to ${tmp_dir}"
 
   # ── Determine installation approach (File-First) ───────────────────────────
   log_info "Searching repository files for install script..."
@@ -310,7 +346,7 @@ cmd_repack() {
       source "${LIB}/repack.sh"
     elif [ -d "${HOME}/.local/lib/ricer" ]; then
       log_warn "repack.sh is missing from ${LIB}. Attempting automatic download..."
-      local ver="${VERSION:-1.3.0}"
+      local ver="${VERSION:-main}"
       [ "$ver" = "dev" ] && ver="main"
       if curl -fsSL --max-time 15 "https://raw.githubusercontent.com/mrsreeindian/rice-farmer/v${ver}/lib/repack.sh" -o "${LIB}/repack.sh" 2>/dev/null || \
          curl -fsSL --max-time 15 "https://raw.githubusercontent.com/mrsreeindian/rice-farmer/main/lib/repack.sh" -o "${LIB}/repack.sh" 2>/dev/null; then

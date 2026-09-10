@@ -361,8 +361,14 @@ _backup_link() {
   fi
 
   mkdir -p "$(dirname "$dst")"
-  ln -sf "$src_full" "$dst"
-  log_dim "Symlinked: $src_full -> $dst"
+  if [ -d "$src_full" ]; then
+    mkdir -p "$dst"
+    cp -rL "$src_full"/. "$dst/" 2>/dev/null || cp -r "$src_full"/. "$dst/"
+    log_dim "Copied directory: $src_full -> $dst"
+  else
+    cp -L "$src_full" "$dst" 2>/dev/null || cp "$src_full" "$dst"
+    log_dim "Copied file: $src_full -> $dst"
+  fi
 }
 
 # ── Run command inside repo dir ───────────────────────────────────────────────

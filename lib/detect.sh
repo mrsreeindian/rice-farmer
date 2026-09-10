@@ -23,7 +23,7 @@ detect_system() {
         RICER_DISTRO_FAMILY="ubuntu/debian" ;;
       *rhel*|*redhat*|*fedora*|*centos*|*rocky*|*alma*)
         RICER_DISTRO_FAMILY="redhat" ;;
-      *arch*|*manjaro*|*endeavouros*|*omarchy*|*garuda*|*artix*)
+      *arch*|*manjaro*|*endeavouros*|*omarchy*|*garuda*|*cachyos*|*artix*)
         RICER_DISTRO_FAMILY="arch" ;;
       *gentoo*|*funtoo*)
         RICER_DISTRO_FAMILY="gentoo" ;;

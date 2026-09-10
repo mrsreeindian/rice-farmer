@@ -49,7 +49,7 @@ spinner_stop() {
 
 # ── System info table ──────────────────────────────────────────────────────────
 print_system_table() {
-  local w=44
+  local w=56
   local line; line=$(printf '=%.0s' $(seq 1 $w))
   echo -e "${CYAN}+${line}+${RESET}"
   printf "${CYAN}|${RESET}  ${BOLD}${MAGENTA}Rice Farmer — System Detection${RESET}%*s${CYAN}|${RESET}\n" $((w-32)) ""
