@@ -99,12 +99,13 @@ A Linux ricing utility that can:
 
 ### 8. CLI Lifecycle & Self-Management
 - `ricer update`: Atomic self-update pulling the latest official GitHub release only (`/releases/latest`), preventing untested edge updates or unintended downgrades.
-- `ricer update --beta`: Update channel pulling the latest git tag (`/tags`), allowing users and developers to update to the latest tagged beta/edge versions before a formal GitHub release is published.
+- `ricer update --latest`: Update channel pulling the latest git tag (`/tags`), allowing users and developers to update to the latest tagged edge versions before a formal GitHub release is published.
+- `ricer update --beta`: Dedicated beta update channel specifically querying and installing tags named like `v1.x.y Beta`.
 - Both modes support git clones (developer mode checking out target tag/release) and cURL-installed setups (atomic downloads pinned to the target version).
 - `ricer uninstall`: Clean interactive removal of binary, libraries, and share files while preserving user backups.
 - `ricer detect`: Formatted system diagnostic display compatible with pure ASCII terminals and minimal TTYs.
 - **Orphan package pruning**: `--clean-orphans` flag (aliases: `--remove-orphans`, `--prune-orphans`) to automatically identify and clean up unneeded dependencies and orphaned packages across all supported package managers (`pacman -Rns $(pacman -Qtdq)`, `apt autoremove`, `dnf autoremove`, `emerge --depclean`, etc.) after rice installation.
-- CLI flags: `--dry-run`, `--local`, `--offline`, `--no-backup`, `--clean-orphans`, `--beta`, `--model`, `--version`, `--help`.
+- CLI flags: `--dry-run`, `--local`, `--offline`, `--no-backup`, `--clean-orphans`, `--latest`, `--beta`, `--model`, `--version`, `--help`.
 
 ### 9. Security, Data Safety & Robustness Hardening (v1.2.2)
 - **Path Normalization & Deletion Guards**: Target paths are normalized with trailing-slash removal (`${dst%/}`); strict safety invariants prevent `rm -rf` from ever executing against `$HOME`, `$HOME/.config`, or `/` under any circumstances (including `~` or relative dotfile copies).
@@ -123,7 +124,7 @@ A Linux ricing utility that can:
 - **Privacy Notice & Telemetry Awareness (SEC-04)**: Warns users when using the cloud AI backend and recommends `--local` or `--offline` for private or sensitive repositories.
 
 ### 11. Desktop Configuration Repackaging & Format Preservation (v1.3.0)
-- **Subcommand `ricer repack`**: Packages the active desktop environment, keybindings, widgets, status bars, terminal configs, and wallpaper into an install-ready `.zip` archive saved to the filesystem.
+- **Subcommand `ricer repack`**: Packages the active desktop environment, keybindings, widgets, status bars, terminal configs, and wallpaper into an install-ready `.zip` archive saved by default into the user's `~/Downloads` folder (or user-specified filename/path).
 - **Active Wallpaper Identification**: Multi-layer detection engine queries running services and config trees:
   - Compositor wallpaper daemons: `swww query`, `hyprpaper.conf`, `swaybg`, `feh --bg-fill` (`~/.fehbg`).
   - Pre-rice wallpaper stores: `~/.config/omarchy/backgrounds`, `~/.config/omarchy/wallpaper`, `~/.config/caelestia/wallpaper`, `~/.local/share/caelestia/wallpapers`, `/usr/share/wallpapers/garuda-wallpapers`.

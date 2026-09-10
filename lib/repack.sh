@@ -415,11 +415,18 @@ chmod +x install.sh && ./install.sh
 \`\`\`
 README_EOF
 
-  # ── 4. Target ZIP path resolution ───────────────────────────────────────────
+  # ── 4. Target ZIP path resolution (saved in Downloads folder) ────────────────
+  local downloads_dir="${XDG_DOWNLOAD_DIR:-${HOME}/Downloads}"
   if [ -z "$target_zip" ]; then
-    target_zip="${HOME}/rice-repack-${format}-$(date +%Y%m%d-%H%M%S).zip"
+    mkdir -p "$downloads_dir"
+    target_zip="${downloads_dir}/rice-repack-${format}-$(date +%Y%m%d-%H%M%S).zip"
+  else
+    target_zip="${target_zip/#\~/$HOME}"
+    if [[ "$target_zip" != */* ]]; then
+      mkdir -p "$downloads_dir"
+      target_zip="${downloads_dir}/${target_zip}"
+    fi
   fi
-  target_zip="${target_zip/#\~/$HOME}"
   # Ensure .zip extension
   [[ "$target_zip" =~ \.zip$ ]] || target_zip="${target_zip}.zip"
 

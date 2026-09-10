@@ -43,10 +43,10 @@ ricer detect
 # Install a rice from GitHub
 ricer install https://github.com/username/dotfiles
 
-# Repack your current desktop config, active wallpaper, widgets, and keybinds into a zip
+# Repack your current desktop config, active wallpaper, widgets, and keybinds into ~/Downloads
 ricer repack
 
-# Repack into a custom zip filename with a specific format profile
+# Repack into a custom zip filename (saved to ~/Downloads by default) with a specific format profile
 ricer repack my-rice.zip --format omarchy
 ricer repack caelestia-rice.zip --format caelestia
 ricer repack garuda-rice.zip --format garuda
@@ -60,7 +60,10 @@ ricer restore
 # Check and update Rice Farmer to the latest official release
 ricer update
 
-# Update to the latest git tag (beta / edge builds)
+# Update to the latest git tag (edge / preview builds)
+ricer update --latest
+
+# Update to the latest beta tag (e.g. v1.x.y Beta)
 ricer update --beta
 
 # Uninstall Rice Farmer
@@ -77,7 +80,8 @@ ricer uninstall
 | `--no-backup` | Skip config backup (use with care) |
 | `--offline` | Force rule engine, skip AI call |
 | `--clean-orphans` | Remove orphan/unused packages after install |
-| `--beta` | Pull latest git tag instead of release (`ricer update` only) |
+| `--latest` | Pull latest git tag instead of release (`ricer update` only) |
+| `--beta` | Pull latest beta tag, e.g. `v1.x.y Beta` (`ricer update` only) |
 | `--model <name>` | Override AI model name (default: `openai`) |
 
 ---

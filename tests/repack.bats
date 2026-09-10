@@ -163,3 +163,23 @@ _tmpdir() { mktemp -d; }
   rm -rf "$test_h" "$extract_dir"
   HOME="$orig_home"
 }
+
+@test "run_repack defaults to saving archive inside Downloads directory" {
+  local orig_home="$HOME"
+  local test_h=$(_tmpdir)
+  HOME="$test_h"
+
+  mkdir -p "$HOME/.config/hypr"
+  touch "$HOME/.config/hypr/hyprland.conf"
+
+  RICER_REPACK_FORMAT="generic" RICER_WM="Hyprland" run_repack ""
+
+  [ -d "$test_h/Downloads" ]
+  local count
+  count=$(find "$test_h/Downloads" -maxdepth 1 -name "rice-repack-generic-*.zip" | wc -l)
+  [ "$count" -ge 1 ]
+
+  rm -rf "$test_h"
+  HOME="$orig_home"
+}
+

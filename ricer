@@ -43,6 +43,7 @@ RICER_LOCAL=false
 RICER_POLLIN_MODEL="openai"
 RICER_CLEAN_ORPHANS=false
 RICER_UPDATE_BETA=false
+RICER_UPDATE_LATEST=false
 RICER_REPACK_FORMAT=""
 RICER_REPACK_OUTPUT=""
 
@@ -55,9 +56,10 @@ ${BOLD}Rice Farmer${RESET} v${VERSION} — Install any Linux rice from a GitHub 
 ${BOLD}USAGE${RESET}
   ricer detect                  Show detected system info
   ricer install <github-url>    Install a rice/dotfile repo
-  ricer repack [output.zip]     Repack current desktop configs, wallpaper, keybinds, and widgets
+  ricer repack [output.zip]     Repack desktop configs, wallpaper, keybinds, and widgets to Downloads
   ricer restore                 Restore the latest config backup
-  ricer update [--beta]         Check for updates and pull latest release (or latest tag)
+  ricer update [--latest]       Check for updates and pull latest release (or latest git tag)
+  ricer update --beta           Pull latest beta release/tag (e.g. v1.x.y Beta)
   ricer uninstall               Remove Rice Farmer from the system
   ricer version                 Print version and exit
   ricer help                    Show this help
@@ -69,7 +71,8 @@ ${BOLD}FLAGS${RESET}
   --no-backup      Skip config backup (dangerous!)
   --offline        Skip AI call, use built-in rule engine only
   --clean-orphans  Remove orphan/unused packages after installation
-  --beta           Pull latest git tag instead of official release (update only)
+  --latest         Pull latest git tag instead of official release (update only)
+  --beta           Pull latest beta tag (e.g. v1.x.y Beta) (update only)
   --model <name>   AI model to use (default: openai)
   --version        Print version and exit
   --help           Show this help
@@ -80,10 +83,11 @@ ${BOLD}EXAMPLES${RESET}
   ricer install https://github.com/user/hyprland-dots --dry-run
   ricer install https://github.com/user/hyprland-dots --clean-orphans
   ricer repack
-  ricer repack ~/my-rice.zip --format omarchy
+  ricer repack my-rice.zip --format omarchy
   ricer repack caelestia-rice.zip --format caelestia
   ricer restore
   ricer update
+  ricer update --latest
   ricer update --beta
   ricer uninstall
 
@@ -104,6 +108,7 @@ while [[ $# -gt 0 ]]; do
     --offline)        RICER_OFFLINE=true; shift ;;
     --clean-orphans|--remove-orphans|--prune-orphans) RICER_CLEAN_ORPHANS=true; shift ;;
     --beta)           RICER_UPDATE_BETA=true; shift ;;
+    --latest)         RICER_UPDATE_LATEST=true; shift ;;
     --format)
       [ $# -ge 2 ] || { log_error "--format requires an argument (omarchy, caelestia, garuda, generic)"; exit 1; }
       RICER_REPACK_FORMAT="$2"; shift 2 ;;
@@ -333,7 +338,18 @@ cmd_update() {
   # ── Determine update channel ───────────────────────────────────────────────
   if [ "${RICER_UPDATE_BETA:-false}" = "true" ]; then
     channel="beta"
-    log_info "Checking for latest tag from GitHub (beta channel)..."
+    log_info "Checking for latest beta tag from GitHub (e.g. v1.x.y Beta)..."
+    remote_tag=$(curl -fsSL --max-time 10 \
+      -H "Accept: application/vnd.github.v3+json" \
+      "https://api.github.com/repos/mrsreeindian/rice-farmer/tags" 2>/dev/null \
+      | jq -r '[.[] | select(.name | test("beta"; "i"))][0].name // empty' 2>/dev/null || true)
+
+    if [ -z "$remote_tag" ] || [ "$remote_tag" = "null" ]; then
+      die "Could not find any tags named like 'v1.x.y Beta' on GitHub."
+    fi
+  elif [ "${RICER_UPDATE_LATEST:-false}" = "true" ]; then
+    channel="latest tag"
+    log_info "Checking for latest git tag from GitHub (latest channel)..."
     remote_tag=$(curl -fsSL --max-time 10 \
       -H "Accept: application/vnd.github.v3+json" \
       "https://api.github.com/repos/mrsreeindian/rice-farmer/tags" 2>/dev/null \
@@ -351,8 +367,16 @@ cmd_update() {
       "https://api.github.com/repos/mrsreeindian/rice-farmer/releases/latest" 2>/dev/null \
       | jq -r '.tag_name // empty' 2>/dev/null || true)
 
+    # Fallback to latest non-beta tag if no formal GitHub release is published
     if [ -z "$remote_tag" ] || [ "$remote_tag" = "null" ]; then
-      die "Could not find a published release on GitHub. Use 'ricer update --beta' to pull the latest tag."
+      remote_tag=$(curl -fsSL --max-time 10 \
+        -H "Accept: application/vnd.github.v3+json" \
+        "https://api.github.com/repos/mrsreeindian/rice-farmer/tags" 2>/dev/null \
+        | jq -r '[.[] | select(.name | test("beta"; "i") | not)][0].name // empty' 2>/dev/null || true)
+    fi
+
+    if [ -z "$remote_tag" ] || [ "$remote_tag" = "null" ]; then
+      die "Could not find a published release on GitHub. Use 'ricer update --latest' to pull the latest tag."
     fi
   fi
 
@@ -424,7 +448,8 @@ cmd_update() {
   log_info "Downloading ${remote_tag}..."
   mkdir -p "$bin_dir" "$lib_dir" "$share_dir"
 
-  local repo_raw="https://raw.githubusercontent.com/mrsreeindian/rice-farmer/${remote_tag}"
+  local encoded_tag="${remote_tag// /%20}"
+  local repo_raw="https://raw.githubusercontent.com/mrsreeindian/rice-farmer/${encoded_tag}"
 
   local tmp_update_dir
   tmp_update_dir=$(mktemp -d /tmp/ricer-update-XXXXXX)
