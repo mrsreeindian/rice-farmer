@@ -252,6 +252,9 @@ CRITICAL INSTRUCTIONS:
    - Identify configuration folders (e.g., nvim, hypr, sway, i3, waybar, rofi, kitty, alacritty, polybar, fastfetch, dunst, fish, zsh, tmux, etc.).
    - If directories belong in ~/.config/, map each folder with "copy": ["<folder>", "~/.config/<folder>"] or "symlink".
    - If the repository contains a GRUB theme (theme.txt, background images, fonts), use {"type":"grub_theme","args":["<theme_dir_or_.>","<theme_name>"],"description":"Install GRUB bootloader theme"}.
+   - If the repository contains a Limine bootloader theme/config (limine.conf, limine.cfg, wallpaper), use {"type":"limine_theme","args":["<dir_or_.>","<theme_name>"],"description":"Install Limine bootloader theme/config"}.
+   - If the repository contains a systemd-boot splash/theme (loader.conf, splash.bmp), use {"type":"systemd_boot_theme","args":["<dir_or_.>","<theme_name>"],"description":"Configure systemd-boot splash/theme"}.
+   - If the repository contains systemd user services to enable, use {"type":"systemd_service","args":["<service_name>","enable"],"description":"Enable systemd user unit"}.
    - If files are dotfiles for the home directory (e.g., .bashrc, .zshrc, .tmux.conf), map them to "~/<file>".
    - If the repository has a GNU Stow structure (packages containing .config or dotfiles), use {"type":"stow","args":["."],"description":"Stow dotfiles"}.
 
@@ -279,7 +282,8 @@ System context:
   pre_rice: ${RICER_PRE_RICE:-none} (e.g. omarchy, cachyos, garuda, omakub, caelestia, or none)
   wm: ${RICER_WM}
   session: ${RICER_SESSION}
-  bootloader: ${RICER_BOOTLOADER} (grub_available: ${RICER_HAS_GRUB})
+  bootloader: ${RICER_BOOTLOADER} (grub: ${RICER_HAS_GRUB:-false}, limine: ${RICER_HAS_LIMINE:-false}, systemd-boot: ${RICER_HAS_SYSTEMD_BOOT:-false})
+  init_system: ${RICER_INIT_SYSTEM:-unknown} (systemd: ${RICER_HAS_SYSTEMD:-false})
   package_managers: ${RICER_PKG_MANAGERS}
   canonical_pm: ${RICER_PM_CMD}
   arch: ${RICER_ARCH}
@@ -294,14 +298,17 @@ ${readme}
 
 Output format:
 [
-  { "type": "install_pkg", "args": ["pkg1", "pkg2"], "description": "Install required packages" },
-  { "type": "copy",        "args": ["<src_rel_path>", "~/.config/<app>"], "description": "Install <app> config" },
-  { "type": "grub_theme",  "args": ["<dir_with_theme.txt>", "<theme_name>"], "description": "Install GRUB bootloader theme" },
-  { "type": "stow",        "args": ["."],           "description": "Stow all dotfiles" },
-  { "type": "symlink",     "args": ["<src>", "<dst>"], "description": "Symlink config" }
+  { "type": "install_pkg",        "args": ["pkg1", "pkg2"], "description": "Install required packages" },
+  { "type": "copy",               "args": ["<src_rel_path>", "~/.config/<app>"], "description": "Install <app> config" },
+  { "type": "grub_theme",         "args": ["<dir_with_theme.txt>", "<theme_name>"], "description": "Install GRUB bootloader theme" },
+  { "type": "limine_theme",       "args": ["<dir_with_limine_conf>", "<theme_name>"], "description": "Install Limine bootloader theme" },
+  { "type": "systemd_boot_theme", "args": ["<dir_with_loader_conf>", "<theme_name>"], "description": "Configure systemd-boot splash" },
+  { "type": "systemd_service",    "args": ["<service_name>", "enable"], "description": "Enable systemd user service" },
+  { "type": "stow",               "args": ["."],           "description": "Stow all dotfiles" },
+  { "type": "symlink",            "args": ["<src>", "<dst>"], "description": "Symlink config" }
 ]
 
-Valid types: install_pkg, copy, symlink, stow, grub_theme. (Do NOT use run_cmd; only declarative filesystem steps are permitted).
+Valid types: install_pkg, copy, symlink, stow, grub_theme, limine_theme, systemd_boot_theme, systemd_service. (Do NOT use run_cmd; only declarative filesystem and service steps are permitted).
 Output raw JSON only.
 PROMPT
 }
@@ -416,7 +423,7 @@ get_ai_plan() {
       | if type == "array" then . else null end
     else null
     end
-    | if . != null then map(select(.type != "run_cmd" and (.type | test("^(install_pkg|copy|symlink|stow|grub_theme)$")))) else null end
+    | if . != null then map(select(.type != "run_cmd" and (.type | test("^(install_pkg|copy|symlink|stow|grub_theme|limine_theme|systemd_boot_theme|systemd_service)$")))) else null end
   ' 2>/dev/null)
 
   if [ -n "$plan" ] && [ "$plan" != "null" ]; then

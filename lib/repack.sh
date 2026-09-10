@@ -201,6 +201,12 @@ if [ -d "${SCRIPT_DIR}/wallpapers" ]; then
   fi
 fi
 
+# 5. Reload systemd user services if present
+if [ -d "${SCRIPT_DIR}/.config/systemd/user" ] && command -v systemctl &>/dev/null; then
+  systemctl --user daemon-reload 2>/dev/null || true
+  echo "  Reloaded systemd user daemon."
+fi
+
 INSTALLER_EOF
 
   # Format-specific post-install hooks in install.sh
@@ -296,7 +302,7 @@ run_repack() {
   case "$format" in
     omarchy)
       log_info "Collecting Omarchy desktop stack..."
-      local omarchy_apps=(omarchy hypr waybar mako foot kitty fastfetch cava btop alacritty ghostty)
+      local omarchy_apps=(omarchy hypr waybar mako foot kitty fastfetch cava btop alacritty ghostty systemd)
       for app in "${omarchy_apps[@]}"; do
         if repack_copy_app_config "$app" "$stage_cfg"; then
           included_apps+=("$app")
@@ -305,7 +311,7 @@ run_repack() {
       ;;
     caelestia)
       log_info "Collecting Caelestia desktop stack..."
-      local caelestia_apps=(caelestia ags hypr waybar rofi wofi dunst swaync kitty alacritty fastfetch)
+      local caelestia_apps=(caelestia ags hypr waybar rofi wofi dunst swaync kitty alacritty fastfetch systemd)
       for app in "${caelestia_apps[@]}"; do
         if repack_copy_app_config "$app" "$stage_cfg"; then
           included_apps+=("$app")
@@ -314,7 +320,7 @@ run_repack() {
       ;;
     garuda)
       log_info "Collecting Garuda desktop stack..."
-      local garuda_apps=(garuda hypr waybar fish swaync dunst alacritty kitty fastfetch)
+      local garuda_apps=(garuda hypr waybar fish swaync dunst alacritty kitty fastfetch systemd)
       for app in "${garuda_apps[@]}"; do
         if repack_copy_app_config "$app" "$stage_cfg"; then
           included_apps+=("$app")
@@ -333,7 +339,7 @@ run_repack() {
                           mako dunst swaync \
                           rofi wofi \
                           kitty alacritty foot ghostty wezterm \
-                          fastfetch cava btop fish)
+                          fastfetch cava btop fish systemd)
       for app in "${generic_apps[@]}"; do
         if repack_copy_app_config "$app" "$stage_cfg"; then
           included_apps+=("$app")

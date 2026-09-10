@@ -121,15 +121,41 @@ detect_system() {
   # ── Bootloader ───────────────────────────────────────────────────────────────
   RICER_BOOTLOADER="unknown"
   RICER_HAS_GRUB="false"
-  if command -v grub-install &>/dev/null || command -v grub-mkconfig &>/dev/null || \
-     command -v grub2-mkconfig &>/dev/null || command -v update-grub &>/dev/null || \
-     [ -d /boot/grub ] || [ -d /boot/grub2 ] || [ -f /etc/default/grub ]; then
-    RICER_BOOTLOADER="grub"
-    RICER_HAS_GRUB="true"
+  RICER_HAS_LIMINE="false"
+  RICER_HAS_SYSTEMD_BOOT="false"
+
+  if command -v limine &>/dev/null || command -v limine-deploy &>/dev/null || \
+     [ -d /boot/limine ] || [ -f /boot/limine.conf ] || [ -f /boot/limine.cfg ] || \
+     [ -d /boot/efi/limine ] || [ -f /boot/efi/limine/limine.conf ] || [ -f /boot/efi/limine.conf ] || \
+     [ -d /efi/limine ] || [ -f /efi/limine/limine.conf ] || [ -f /efi/limine.conf ]; then
+    RICER_BOOTLOADER="limine"
+    RICER_HAS_LIMINE="true"
   elif command -v bootctl &>/dev/null && bootctl is-installed &>/dev/null; then
     RICER_BOOTLOADER="systemd-boot"
-  elif [ -d /boot/loader ]; then
+    RICER_HAS_SYSTEMD_BOOT="true"
+  elif [ -d /boot/loader ] || [ -d /efi/loader ]; then
     RICER_BOOTLOADER="systemd-boot"
+    RICER_HAS_SYSTEMD_BOOT="true"
+  elif command -v grub-install &>/dev/null || command -v grub-mkconfig &>/dev/null || \
+       command -v grub2-mkconfig &>/dev/null || command -v update-grub &>/dev/null || \
+       [ -d /boot/grub ] || [ -d /boot/grub2 ] || [ -f /etc/default/grub ]; then
+    RICER_BOOTLOADER="grub"
+    RICER_HAS_GRUB="true"
+  fi
+
+  # ── Init System (systemd, openrc, runit, etc.) ──────────────────────────────
+  RICER_INIT_SYSTEM="unknown"
+  RICER_HAS_SYSTEMD="false"
+  if [ -d /run/systemd/system ] || [ "$(cat /proc/1/comm 2>/dev/null || true)" = "systemd" ]; then
+    RICER_INIT_SYSTEM="systemd"
+    RICER_HAS_SYSTEMD="true"
+  elif [ -f /sbin/openrc ] || [ -d /run/openrc ]; then
+    RICER_INIT_SYSTEM="openrc"
+  elif [ -d /run/runit ]; then
+    RICER_INIT_SYSTEM="runit"
+  elif command -v systemctl &>/dev/null; then
+    RICER_INIT_SYSTEM="systemd"
+    RICER_HAS_SYSTEMD="true"
   fi
 
   # ── Pre-Rice Environment ───────────────────────────────────────────────────
@@ -155,5 +181,6 @@ detect_system() {
          RICER_PKG_MANAGERS RICER_PM_CMD \
          RICER_WM RICER_SESSION RICER_IS_BAREBONES RICER_PRE_RICE \
          RICER_CPU RICER_RAM RICER_GPU RICER_ARCH \
-         RICER_BOOTLOADER RICER_HAS_GRUB
+         RICER_BOOTLOADER RICER_HAS_GRUB RICER_HAS_LIMINE RICER_HAS_SYSTEMD_BOOT \
+         RICER_INIT_SYSTEM RICER_HAS_SYSTEMD
 }

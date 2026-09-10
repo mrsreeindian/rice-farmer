@@ -253,6 +253,46 @@ rules_detect_plan() {
     fi
   fi
 
+  # ── Pattern 1c: Limine bootloader configuration / theme ───────────────────────
+  if [ -z "$plan" ]; then
+    if [ -f "$repo_dir/limine.conf" ] || [ -f "$repo_dir/limine.cfg" ]; then
+      log_dim "Rule: root Limine configuration/theme detected"
+      local tname
+      tname=$(basename "$repo_dir")
+      plan=$(jq -cn --arg t "$tname" '[{"type":"limine_theme","args":[".",$t],"description":"Install Limine bootloader theme/config"}]')
+    else
+      local limine_dir
+      limine_dir=$(find "$repo_dir" -maxdepth 2 \( -name "limine.conf" -o -name "limine.cfg" \) -exec dirname {} \; 2>/dev/null | head -1)
+      if [ -n "$limine_dir" ]; then
+        local rel_limine_dir="${limine_dir#$repo_dir/}"
+        local tname
+        tname=$(basename "$limine_dir")
+        log_dim "Rule: Limine theme in subdirectory ($rel_limine_dir)"
+        plan=$(jq -cn --arg d "$rel_limine_dir" --arg t "$tname" '[{"type":"limine_theme","args":[$d,$t],"description":"Install Limine bootloader theme/config"}]')
+      fi
+    fi
+  fi
+
+  # ── Pattern 1d: systemd-boot splash / configuration ───────────────────────────
+  if [ -z "$plan" ]; then
+    if [ -f "$repo_dir/loader.conf" ] || [ -f "$repo_dir/splash.bmp" ]; then
+      log_dim "Rule: root systemd-boot configuration/splash detected"
+      local tname
+      tname=$(basename "$repo_dir")
+      plan=$(jq -cn --arg t "$tname" '[{"type":"systemd_boot_theme","args":[".",$t],"description":"Configure systemd-boot splash/theme"}]')
+    else
+      local sdboot_dir
+      sdboot_dir=$(find "$repo_dir" -maxdepth 2 \( -name "loader.conf" -o -name "splash.bmp" \) -exec dirname {} \; 2>/dev/null | head -1)
+      if [ -n "$sdboot_dir" ]; then
+        local rel_sdboot_dir="${sdboot_dir#$repo_dir/}"
+        local tname
+        tname=$(basename "$sdboot_dir")
+        log_dim "Rule: systemd-boot theme in subdirectory ($rel_sdboot_dir)"
+        plan=$(jq -cn --arg d "$rel_sdboot_dir" --arg t "$tname" '[{"type":"systemd_boot_theme","args":[$d,$t],"description":"Configure systemd-boot splash/theme"}]')
+      fi
+    fi
+  fi
+
   # ── Pattern 2: chezmoi ───────────────────────────────────────────────────────
   if [ -z "$plan" ]; then
     if [ -d "$repo_dir/.chezmoi" ] \
@@ -361,7 +401,7 @@ rules_detect_plan() {
   # ── Pattern 7: app config folders at repo root (e.g. hypr, nvim, waybar, kitty) ───
   if [ -z "$plan" ]; then
     local common_apps=(hypr hyprland sway i3 waybar rofi wofi kitty alacritty foot wezterm \
-                       nvim neovim fish zsh tmux dunst mako polybar fastfetch btop cava)
+                       nvim neovim fish zsh tmux dunst mako polybar fastfetch btop cava systemd)
     local found_app_pairs=()
     for app in "${common_apps[@]}"; do
       if [ -d "$repo_dir/$app" ]; then

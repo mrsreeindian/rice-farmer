@@ -60,3 +60,20 @@ setup() {
   [[ "$RICER_IS_BAREBONES" =~ ^(true|false)$ ]]
 }
 
+@test "RICER_HAS_LIMINE is boolean" {
+  [[ "$RICER_HAS_LIMINE" =~ ^(true|false)$ ]]
+}
+
+@test "RICER_HAS_SYSTEMD_BOOT is boolean" {
+  [[ "$RICER_HAS_SYSTEMD_BOOT" =~ ^(true|false)$ ]]
+}
+
+@test "RICER_HAS_SYSTEMD is boolean" {
+  [[ "$RICER_HAS_SYSTEMD" =~ ^(true|false)$ ]]
+}
+
+@test "RICER_INIT_SYSTEM is set" {
+  [ -n "$RICER_INIT_SYSTEM" ]
+}
+
+

@@ -143,4 +143,21 @@ A Linux ricing utility that can:
 - **Archive Generation & Tool Fallback**:
   - Prioritizes system `zip` utility; falls back seamlessly to Python 3 / Python standard library `zipfile` module when `zip` is uninstalled.
 
+### 12. Limine Bootloader & systemd Ecosystem Architecture (v1.3.1)
+- **Limine Bootloader Detection & Theme Customization**:
+  - Automatic detection of Limine bootloader (`RICER_BOOTLOADER="limine"`, `RICER_HAS_LIMINE="true"`) inspecting `limine` command and config/boot directories (`/boot/limine`, `/boot/efi/limine`, `/efi/limine`, `/boot/limine.conf`, `/boot/limine.cfg`).
+  - Automatic identification of Limine themes and configurations from repositories containing `limine.conf` or `limine.cfg`.
+  - Installs theme assets (backgrounds, fonts, bitmaps) into `/boot/limine/themes/` and safely updates styling keys (`wallpaper:`, `term_font:`) in the active `limine.conf`.
+  - Automatic backup of existing `limine.conf` / `limine.cfg` into `~/.config-backup-<timestamp>` and restoration via `ricer restore`.
+- **systemd-boot Splash & Configuration**:
+  - Detects `systemd-boot` presence (`RICER_BOOTLOADER="systemd-boot"`, `RICER_HAS_SYSTEMD_BOOT="true"`).
+  - Identifies `loader.conf` or splash image files (`splash.bmp`, `splash.png`) and installs them to `/boot/loader` / `/efi/loader`.
+  - Backs up and restores `loader.conf` across updates and restorations.
+- **systemd Init & User Units Management**:
+  - Detects active init system (`RICER_INIT_SYSTEM="systemd"`, `RICER_HAS_SYSTEMD="true"`).
+  - Automatically triggers non-intrusive `systemctl --user daemon-reload` whenever user units (`~/.config/systemd/user`) are copied or symlinked.
+  - Supports declarative `systemd_service` step type in plans to enable and manage user services (`hypridle`, `swww`, `swaync`, `mpd`, etc.).
+  - `ricer repack` captures active user services in `~/.config/systemd/user/` and includes automatic daemon reloading in the generated standalone installer.
+
+
 

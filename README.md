@@ -2,17 +2,17 @@
 
 > Install any Linux rice/dotfiles from a GitHub URL — in one command.
 
-[![version](https://img.shields.io/badge/version-1.3.0-blue)](#)
+[![version](https://img.shields.io/badge/version-1.3.1-blue)](#)
 [![license](https://img.shields.io/badge/license-MIT-green)](#)
 [![shell](https://img.shields.io/badge/shell-bash-orange)](#)
 
 **Rice Farmer** is a lightweight (~30 KB), pure-Bash tool that:
-- Auto-detects your distro (Ubuntu/Debian, Red Hat/Fedora/CentOS, Arch, Gentoo, openSUSE), WM, package managers, hardware, and bootloader (GRUB)
+- Auto-detects your distro (Ubuntu/Debian, Red Hat/Fedora/CentOS, Arch, Gentoo, openSUSE), WM, package managers, hardware, bootloader (**Limine**, **systemd-boot**, **GRUB**), and init system (**systemd**, **openrc**, etc.)
 - **Pre-Rice & Desktop Conflict Management**: Separate profiles for **Omarchy**, **CachyOS**, **Garuda**, **Omakub**, and pre-rices (e.g. **Caelestia**, **Hyprdots**); warns of conflicts, automatically isolates/quarantines incompatible configs, stops colliding daemons, and installs missing dependencies
-- **Desktop Rice Repackaging (`ricer repack`)**: Repack your active system configuration—including active wallpaper, keybinds, widgets, bars, and app configs—into a standalone, shareable `.zip` archive with pre-rice hooks for **Omarchy**, **Caelestia**, **Garuda**, and generic window managers
+- **Desktop Rice Repackaging (`ricer repack`)**: Repack your active system configuration—including active wallpaper, keybinds, widgets, bars, systemd user services, and app configs—into a standalone, shareable `.zip` archive with pre-rice hooks for **Omarchy**, **Caelestia**, **Garuda**, and generic window managers
 - **Barebones Arch & Gentoo support**: Automatically detects minimal/TTY-only systems without a GUI and installs the required DE/WM stack, display servers/compositors, audio (`pipewire`), portals, waybar, terminals, and fonts
-- Uses a free cloud AI model (no API key required) to intelligently install any rice, dotfiles, or GRUB bootloader themes
-- Backs up your existing configs (including `/etc/default/grub`) before touching anything
+- Uses a free cloud AI model (no API key required) to intelligently install any rice, dotfiles, or bootloader themes (**Limine**, **systemd-boot**, **GRUB**)
+- Backs up your existing configs (including `/etc/default/grub`, `limine.conf`, and `loader.conf`) before touching anything
 - Works fully offline using a built-in rule engine
 - Installs itself via a single `curl` command
 
@@ -106,12 +106,15 @@ Rice Farmer is **local-first**:
 | Pattern | Detection |
 |---|---|
 | `install.sh` / `setup.sh` | Runs the script directly |
+| Limine Theme / Config | `limine.conf` or `limine.cfg` in root or subdirectory |
+| systemd-boot Theme | `loader.conf` or `splash.bmp` in root or subdirectory |
 | GRUB Theme | `theme.txt` in root or subdirectory |
 | GNU Stow | `.stow-local-ignore` or multi-package layout |
 | chezmoi | `.chezmoi/` dir or `dot_*` files |
 | Bare git | `bare = true` in `.git/config` |
 | Plain `.config/` | Installs each subfolder into `~/.config` |
 | Root dotfiles | Copies `.*` files to `$HOME` |
+| systemd User Services | Units in `systemd/` or `.config/systemd/user/` (auto-reloads daemon) |
 
 ---
 

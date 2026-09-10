@@ -22,6 +22,22 @@ _tmpdir() { mktemp -d; }
   echo "$result" | jq -e '.[0].type == "grub_theme"'
 }
 
+@test "Pattern 1c: detects Limine configuration or theme" {
+  d=$(_tmpdir)
+  touch "$d/limine.conf"
+  result=$(rules_detect_plan "$d")
+  rm -rf "$d"
+  echo "$result" | jq -e '.[0].type == "limine_theme"'
+}
+
+@test "Pattern 1d: detects systemd-boot loader configuration or splash" {
+  d=$(_tmpdir)
+  touch "$d/loader.conf"
+  result=$(rules_detect_plan "$d")
+  rm -rf "$d"
+  echo "$result" | jq -e '.[0].type == "systemd_boot_theme"'
+}
+
 @test "Pattern 2: detects chezmoi dot_ files" {
   d=$(_tmpdir)
   touch "$d/dot_bashrc" "$d/dot_vimrc"
