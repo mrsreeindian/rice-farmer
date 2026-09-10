@@ -2,12 +2,12 @@
 
 > Install any Linux rice/dotfiles from a GitHub URL or zip package — in one command.
 
-[![version](https://img.shields.io/badge/version-1.3.3-blue)](#)
+[![version](https://img.shields.io/badge/version-1.3.4-blue)](#)
 [![license](https://img.shields.io/badge/license-MIT-green)](#)
 [![shell](https://img.shields.io/badge/shell-bash-orange)](#)
 
 **Rice Farmer** is a lightweight (~30 KB), pure-Bash tool that:
-- Auto-detects your distro (Ubuntu/Debian, Red Hat/Fedora/CentOS, Arch, Gentoo, openSUSE), WM, package managers, hardware, bootloader (**Limine**, **systemd-boot**, **GRUB**), and init system (**systemd**, **openrc**, etc.)
+- Auto-detects your distro (Ubuntu/Debian, Red Hat/Fedora/CentOS, Arch, Gentoo, openSUSE), WM, package managers, bootloader (**Limine**, **systemd-boot**, **GRUB**), and init system (**systemd**, **openrc**, etc.)
 - **Pre-Rice & Desktop Conflict Management**: Separate profiles for **Omarchy**, **CachyOS**, **Garuda**, **Omakub**, and pre-rices (e.g. **Caelestia**, **Hyprdots**); warns of conflicts, automatically isolates/quarantines incompatible configs, stops colliding daemons, and installs missing dependencies
 - **Desktop Rice Repackaging (`ricer repack`)**: Repack your active system configuration—including terminal configs (kitty, alacritty, ghostty, foot, wezterm), editor configs (nvim, emacs, helix, Vim), shell configs (fish, bash, zsh, starship), keybinds, widgets, bars, wallpapers, audio (wireplumber), systemd user services, and home dotfiles (`.bashrc`, `.zshrc`, `.vimrc`, etc.)—into a standalone, shareable `.zip` archive with all files fully duplicated (no broken symlinks)
 - **Install from multiple sources**: Install rices from GitHub URLs, local zip archives, local directories, or remote zip URLs

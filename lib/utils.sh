@@ -65,12 +65,8 @@ print_system_table() {
     _row "Pre-Rice" "${RICER_PRE_RICE}"
   fi
   _row "Pkgs"    "${RICER_PKG_MANAGERS}"
-  _row "CPU"     "${RICER_CPU}"
-  _row "RAM"     "${RICER_RAM}"
-  _row "GPU"     "${RICER_GPU}"
   _row "Boot"    "${RICER_BOOTLOADER}"
   _row "Init"    "${RICER_INIT_SYSTEM}"
-  _row "Arch"    "${RICER_ARCH}"
   echo -e "${CYAN}+${line}+${RESET}"
 }
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lib/detect.sh — System detection (distro, WM, package managers, hardware)
+# lib/detect.sh — System detection (distro, WM, package managers)
 
 detect_system() {
   # ── Distro ──────────────────────────────────────────────────────────────────
@@ -103,21 +103,6 @@ detect_system() {
     RICER_WM="${RICER_WM:-tty (${RICER_SESSION})}"
   fi
 
-  # ── Hardware (read from /proc — no extra tools) ──────────────────────────────
-  RICER_CPU=$(grep -m1 -Ei '^[[:space:]]*(model name|hardware|cpu model)[[:space:]]*:' /proc/cpuinfo 2>/dev/null \
-              | cut -d: -f2 | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' || echo "unknown")
-  RICER_RAM=$(LC_ALL=C awk '/MemTotal/{printf "%.0f MB", $2/1024}' /proc/meminfo 2>/dev/null \
-              || echo "unknown")
-  # GPU: try lspci first (lightweight), fall back gracefully
-  if command -v lspci &>/dev/null; then
-    RICER_GPU=$(lspci 2>/dev/null \
-                | grep -Ei 'vga|3d controller|display controller' \
-                | head -1 | cut -d: -f3 | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' || echo "unknown")
-  else
-    RICER_GPU="unknown (lspci not installed)"
-  fi
-  RICER_ARCH=$(uname -m)
-
   # ── Bootloader ───────────────────────────────────────────────────────────────
   RICER_BOOTLOADER="unknown"
   RICER_HAS_GRUB="false"
@@ -180,7 +165,6 @@ detect_system() {
   export RICER_DISTRO RICER_DISTRO_LIKE RICER_DISTRO_FAMILY RICER_DISTRO_PRETTY \
          RICER_PKG_MANAGERS RICER_PM_CMD \
          RICER_WM RICER_SESSION RICER_IS_BAREBONES RICER_PRE_RICE \
-         RICER_CPU RICER_RAM RICER_GPU RICER_ARCH \
          RICER_BOOTLOADER RICER_HAS_GRUB RICER_HAS_LIMINE RICER_HAS_SYSTEMD_BOOT \
          RICER_INIT_SYSTEM RICER_HAS_SYSTEMD
 }

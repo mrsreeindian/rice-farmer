@@ -286,7 +286,6 @@ System context:
   init_system: ${RICER_INIT_SYSTEM:-unknown} (systemd: ${RICER_HAS_SYSTEMD:-false})
   package_managers: ${RICER_PKG_MANAGERS}
   canonical_pm: ${RICER_PM_CMD}
-  arch: ${RICER_ARCH}
 
 Rice repo URL: ${github_url}
 

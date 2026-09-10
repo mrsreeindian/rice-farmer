@@ -20,18 +20,6 @@ setup() {
   [ -n "$RICER_PKG_MANAGERS" ]
 }
 
-@test "RICER_CPU is set and non-empty" {
-  [ -n "$RICER_CPU" ]
-}
-
-@test "RICER_RAM is set and non-empty" {
-  [ -n "$RICER_RAM" ]
-}
-
-@test "RICER_ARCH is set and non-empty" {
-  [ -n "$RICER_ARCH" ]
-}
-
 @test "RICER_WM is set" {
   [ -n "$RICER_WM" ]
 }
