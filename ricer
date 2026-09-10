@@ -26,8 +26,10 @@ source "${LIB}/ai.sh"
 source "${LIB}/rules.sh"
 # shellcheck source=lib/install.sh
 source "${LIB}/install.sh"
-# shellcheck source=lib/repack.sh
-source "${LIB}/repack.sh"
+if [ -f "${LIB}/repack.sh" ]; then
+  # shellcheck source=lib/repack.sh
+  source "${LIB}/repack.sh"
+fi
 
 VERSION="$(cat "${RICER_SELF}/.version" 2>/dev/null \
            || cat "${RICER_SELF}/../share/ricer/.version" 2>/dev/null \
@@ -297,6 +299,25 @@ cmd_restore() {
 
 # ── Subcommand: repack ────────────────────────────────────────────────────────
 cmd_repack() {
+  if ! declare -f run_repack >/dev/null; then
+    if [ -f "${LIB}/repack.sh" ]; then
+      # shellcheck source=lib/repack.sh
+      source "${LIB}/repack.sh"
+    elif [ -d "${HOME}/.local/lib/ricer" ]; then
+      log_warn "repack.sh is missing from ${LIB}. Attempting automatic download..."
+      local ver="${VERSION:-1.3.0}"
+      [ "$ver" = "dev" ] && ver="main"
+      if curl -fsSL --max-time 15 "https://raw.githubusercontent.com/mrsreeindian/rice-farmer/v${ver}/lib/repack.sh" -o "${LIB}/repack.sh" 2>/dev/null || \
+         curl -fsSL --max-time 15 "https://raw.githubusercontent.com/mrsreeindian/rice-farmer/main/lib/repack.sh" -o "${LIB}/repack.sh" 2>/dev/null; then
+        # shellcheck source=lib/repack.sh
+        source "${LIB}/repack.sh"
+      else
+        die "Repack module is missing (${LIB}/repack.sh). Please run 'ricer update' or reinstall."
+      fi
+    else
+      die "Repack module is missing (${LIB}/repack.sh). Please reinstall Rice Farmer."
+    fi
+  fi
   detect_system
   run_repack "${RICER_REPACK_OUTPUT:-}"
 }
